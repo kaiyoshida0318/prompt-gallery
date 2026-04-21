@@ -110,11 +110,43 @@ async function deleteFile(path, sha, commitMessage) {
   });
 }
 
-function imageUrl(path) {
-  // raw.githubusercontent からの直接リンク (Privateリポでもトークン使わず、
-  // Pages経由 or 同リポならcontents APIで取れる。ここではjsDelivr不使用でAPI経由のdownload_urlを使う)
-  // ただしPrivateリポでPages公開している場合は相対パスで十分
-  return `${path}?v=${Date.now()}`;
+// 画像URL取得のキャッシュ(同じ画像を何度もAPIで取りにいかないため)
+const imageCache = new Map();
+
+// GitHub API経由で画像を取得してBlob URLを返す
+// Privateリポジトリの画像を表示するには、PAT認証付きでAPIを叩く必要がある
+async function fetchImageAsBlobUrl(path) {
+  if (imageCache.has(path)) return imageCache.get(path);
+  try {
+    const res = await ghFetch(`contents/${path}?ref=${auth.branch}`);
+    if (!res.ok) throw new Error(`画像取得失敗: ${path}`);
+    const data = await res.json();
+    // base64 → Blob に変換
+    const binary = atob(data.content.replace(/\n/g, ""));
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const ext = (path.split(".").pop() || "png").toLowerCase();
+    const mime = ext === "jpg" || ext === "jpeg" ? "image/jpeg"
+               : ext === "gif" ? "image/gif"
+               : ext === "webp" ? "image/webp"
+               : "image/png";
+    const blob = new Blob([bytes], { type: mime });
+    const url = URL.createObjectURL(blob);
+    imageCache.set(path, url);
+    return url;
+  } catch (e) {
+    console.error("画像読み込み失敗", path, e);
+    return "";
+  }
+}
+
+// 非同期で画像を読み込んで<img>タグにセット
+function loadImageInto(imgEl, path) {
+  imgEl.dataset.loading = "1";
+  fetchImageAsBlobUrl(path).then((url) => {
+    if (url) imgEl.src = url;
+    imgEl.removeAttribute("data-loading");
+  });
 }
 
 // ---------- 認証 ----------
@@ -162,7 +194,7 @@ function render() {
 
   gallery.innerHTML = filtered.map((e) => `
     <div class="card" data-id="${e.id}">
-      <div class="card-img"><img src="${escapeHtml(imageUrl(e.image))}" alt="" loading="lazy" /></div>
+      <div class="card-img"><img data-path="${escapeHtml(e.image)}" alt="" loading="lazy" /></div>
       <div class="card-body">
         <div class="card-prompt">${escapeHtml(e.prompt || "")}</div>
         <div class="card-meta">
@@ -172,6 +204,11 @@ function render() {
       </div>
     </div>
   `).join("");
+
+  // 全ての画像を非同期で読み込む
+  document.querySelectorAll(".card-img img[data-path]").forEach((img) => {
+    loadImageInto(img, img.dataset.path);
+  });
 
   document.querySelectorAll(".card").forEach((el) => {
     el.addEventListener("click", () => openDetail(el.dataset.id));
@@ -200,7 +237,8 @@ function openDetail(id) {
   const e = entries.find((x) => x.id === id);
   if (!e) return;
   currentDetailId = id;
-  $("detail-img").src = imageUrl(e.image);
+  $("detail-img").src = "";
+  loadImageInto($("detail-img"), e.image);
   $("detail-prompt").textContent = e.prompt || "";
   $("detail-model").textContent = e.model || "unknown";
   $("detail-date").textContent = fmtDate(e.createdAt);
