@@ -278,6 +278,72 @@ async function deleteEntry() {
   }
 }
 
+// ---------- 編集 ----------
+function openEdit() {
+  const e = entries.find((x) => x.id === currentDetailId);
+  if (!e) return;
+  // プレビュー画像(詳細モーダルのimgを流用して即時表示)
+  $("edit-preview-img").src = "";
+  loadImageInto($("edit-preview-img"), e.image);
+  // 既存の値をフォームに読み込み
+  $("edit-prompt").value = e.prompt || "";
+  $("edit-negative").value = e.negative || "";
+  $("edit-model").value = e.model || "";
+  $("edit-tags").value = (e.tags || []).join(", ");
+  $("edit-note").value = e.note || "";
+  $("edit-status").textContent = "";
+  $("edit-status").className = "save-status";
+  // 詳細モーダルを閉じて編集モーダルを開く
+  $("detail-modal").style.display = "none";
+  $("edit-modal").style.display = "flex";
+}
+
+async function updateEntry() {
+  const prompt = $("edit-prompt").value.trim();
+  if (!prompt) {
+    alert("Promptは必須です");
+    return;
+  }
+
+  const btn = $("btn-update");
+  btn.disabled = true;
+  $("edit-status").textContent = "保存中…";
+  $("edit-status").className = "save-status";
+
+  try {
+    // 最新を取得して競合回避
+    await loadData();
+
+    const idx = entries.findIndex((x) => x.id === currentDetailId);
+    if (idx === -1) throw new Error("対象のエントリーが見つかりません");
+
+    // 元の image, id, createdAt は保持して、他を更新
+    entries[idx] = {
+      ...entries[idx],
+      prompt,
+      negative: $("edit-negative").value.trim() || undefined,
+      model: $("edit-model").value.trim() || undefined,
+      tags: $("edit-tags").value.split(",").map((t) => t.trim()).filter(Boolean),
+      note: $("edit-note").value.trim() || undefined,
+      updatedAt: new Date().toISOString()
+    };
+
+    await saveData(`Update entry: ${currentDetailId}`);
+
+    $("edit-status").textContent = "✓ 更新しました";
+    $("edit-status").className = "save-status ok";
+    setTimeout(() => {
+      $("edit-modal").style.display = "none";
+      render();
+    }, 700);
+  } catch (err) {
+    $("edit-status").textContent = "✗ " + err.message;
+    $("edit-status").className = "save-status err";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ---------- 追加 ----------
 function resetAddForm() {
   pendingImage = null;
@@ -459,6 +525,10 @@ function bindEvents() {
 
   // 削除
   $("btn-delete").addEventListener("click", deleteEntry);
+
+  // 編集
+  $("btn-edit").addEventListener("click", openEdit);
+  $("btn-update").addEventListener("click", updateEntry);
 
   // 画面外ドラッグ防止
   window.addEventListener("dragover", (e) => e.preventDefault());
