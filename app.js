@@ -240,7 +240,7 @@ function openDetail(id) {
   $("detail-img").src = "";
   loadImageInto($("detail-img"), e.image);
   $("detail-prompt").textContent = e.prompt || "";
-  $("detail-model").textContent = e.model || "unknown";
+  $("detail-model").textContent = e.model || "モデル未設定";
   $("detail-date").textContent = fmtDate(e.createdAt);
 
   if (e.negative) {
@@ -430,7 +430,7 @@ async function saveEntry() {
 function copyText(text, btnEl) {
   navigator.clipboard.writeText(text).then(() => {
     const orig = btnEl.textContent;
-    btnEl.textContent = "copied!";
+    btnEl.textContent = "コピー済み";
     btnEl.classList.add("copied");
     setTimeout(() => {
       btnEl.textContent = orig;
