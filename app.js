@@ -484,15 +484,11 @@ function bindEvents() {
     $("add-modal").style.display = "flex";
   });
 
-  // モーダル閉じる
+  // モーダル閉じる(×ボタン or キャンセルボタンのみ。背景クリックでは閉じない)
   document.querySelectorAll("[data-close]").forEach((el) => {
     el.addEventListener("click", () => {
       $(el.dataset.close).style.display = "none";
     });
-  });
-  document.querySelectorAll(".modal").forEach((m) => {
-    if (m.id === "auth-modal") return;
-    m.addEventListener("click", (e) => { if (e.target === m) m.style.display = "none"; });
   });
 
   // ドロップゾーン
