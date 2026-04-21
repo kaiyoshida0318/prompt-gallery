@@ -41,7 +41,7 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.5.1</span>
+    <span class="version-badge">v1.5.2</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">件</span>
@@ -63,7 +63,7 @@
 <!-- ============== メイン ============== -->
 <main>
   <div id="loading" class="state-msg">読み込み中…</div>
-  <div id="empty-state" class="state-msg" style="display:none">
+  <div id="empty-state" class="state-msg">
     <div class="empty-illust">◇ ◆ ◇</div>
     <p>まだ画像がありません。右上の <b>+ 追加</b> から追加しましょう。</p>
   </div>
@@ -71,9 +71,9 @@
 </main>
 
 <!-- ============== 追加モーダル ============== -->
-<div id="add-modal" class="modal" style="display:none">
+<div id="add-modal" class="modal">
 <!-- ============== 追加モーダル ============== -->
-<div id="add-modal" class="modal" style="display:none">
+<div id="add-modal" class="modal">
   <div class="modal-inner extra-wide">
     <button class="modal-close" data-close="add-modal">×</button>
     <h2>画像を追加</h2>
@@ -85,7 +85,7 @@
           <div class="dz-text">画像をドラッグ&ドロップ<br /><span>またはクリックしてファイル選択</span></div>
           <input id="file-input" type="file" accept="image/*" hidden />
         </div>
-        <div id="preview-wrap" class="preview-wrap" style="display:none">
+        <div id="preview-wrap" class="preview-wrap">
           <img id="preview-img" alt="preview" />
           <button id="preview-clear">別の画像を選ぶ</button>
         </div>
@@ -118,7 +118,7 @@
 </div>
 
 <!-- ============== 詳細モーダル ============== -->
-<div id="detail-modal" class="modal" style="display:none">
+<div id="detail-modal" class="modal">
   <div class="modal-inner detail">
     <button class="modal-close" data-close="detail-modal">×</button>
     <div class="detail-grid">
@@ -137,7 +137,7 @@
         </div>
         <pre id="detail-prompt" class="prompt-box"></pre>
 
-        <div id="negative-section" style="display:none">
+        <div id="negative-section">
           <div class="section-label">
             <span>ネガティブプロンプト</span>
             <button id="copy-negative" class="btn-copy">コピー</button>
@@ -145,12 +145,12 @@
           <pre id="detail-negative" class="prompt-box"></pre>
         </div>
 
-        <div id="tags-section" style="display:none">
+        <div id="tags-section">
           <div class="section-label"><span>タグ</span></div>
           <div id="detail-tags" class="detail-tags"></div>
         </div>
 
-        <div id="note-section" style="display:none">
+        <div id="note-section">
           <div class="section-label"><span>メモ</span></div>
           <p id="detail-note" class="note-text"></p>
         </div>
@@ -165,7 +165,7 @@
 </div>
 
 <!-- ============== 編集モーダル ============== -->
-<div id="edit-modal" class="modal" style="display:none">
+<div id="edit-modal" class="modal">
   <div class="modal-inner extra-wide">
     <button class="modal-close" data-close="edit-modal">×</button>
     <h2>画像を編集</h2>
