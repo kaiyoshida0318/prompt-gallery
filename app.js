@@ -236,7 +236,7 @@ function renderTagFilters() {
 function closeAllModals() {
   ["add-modal", "edit-modal", "detail-modal"].forEach((id) => {
     const el = document.getElementById(id);
-    if (el) el.style.display = "none";
+    if (el) el.classList.remove("open");
   });
 }
 
@@ -266,7 +266,7 @@ function openDetail(id) {
     $("detail-note").textContent = e.note;
   } else $("note-section").style.display = "none";
 
-  $("detail-modal").style.display = "flex";
+  $("detail-modal").classList.add("open");
 }
 
 async function deleteEntry() {
@@ -279,7 +279,7 @@ async function deleteEntry() {
     // 次にdata.jsonから削除
     entries = entries.filter((x) => x.id !== e.id);
     await saveData(`Delete entry: ${e.id}`);
-    $("detail-modal").style.display = "none";
+    $("detail-modal").classList.remove("open");
     render();
   } catch (err) {
     alert("削除に失敗しました: " + err.message);
@@ -302,8 +302,8 @@ function openEdit() {
   $("edit-status").textContent = "";
   $("edit-status").className = "save-status";
   // 詳細モーダルを閉じて編集モーダルを開く
-  $("detail-modal").style.display = "none";
-  $("edit-modal").style.display = "flex";
+  $("detail-modal").classList.remove("open");
+  $("edit-modal").classList.add("open");
 }
 
 async function updateEntry() {
@@ -341,7 +341,7 @@ async function updateEntry() {
     $("edit-status").textContent = "✓ 更新しました";
     $("edit-status").className = "save-status ok";
     setTimeout(() => {
-      $("edit-modal").style.display = "none";
+      $("edit-modal").classList.remove("open");
       render();
     }, 700);
   } catch (err) {
@@ -422,7 +422,7 @@ async function saveEntry() {
     $("save-status").textContent = "✓ 保存しました";
     $("save-status").className = "save-status ok";
     setTimeout(() => {
-      $("add-modal").style.display = "none";
+      $("add-modal").classList.remove("open");
       resetAddForm();
       render();
     }, 700);
@@ -468,7 +468,7 @@ function bindEvents() {
       await verifyAuth(a);
       saveAuth(a);
       auth = a;
-      $("auth-modal").style.display = "none";
+      $("auth-modal").classList.remove("open");
       await init();
     } catch (err) {
       $("auth-error").textContent = err.message;
@@ -489,13 +489,13 @@ function bindEvents() {
   // 追加ボタン
   $("btn-add").addEventListener("click", () => {
     resetAddForm();
-    $("add-modal").style.display = "flex";
+    $("add-modal").classList.add("open");
   });
 
   // モーダル閉じる(×ボタン or キャンセルボタンのみ。背景クリックでは閉じない)
   document.querySelectorAll("[data-close]").forEach((el) => {
     el.addEventListener("click", () => {
-      $(el.dataset.close).style.display = "none";
+      $(el.dataset.close).classList.remove("open");
     });
   });
 
@@ -556,9 +556,9 @@ async function init() {
   closeAllModals(); // 念のため全モーダルを閉じた状態で起動
   auth = loadAuth();
   if (auth) {
-    $("auth-modal").style.display = "none";
+    $("auth-modal").classList.remove("open");
     init();
   } else {
-    $("auth-modal").style.display = "flex";
+    $("auth-modal").classList.add("open");
   }
 })();
