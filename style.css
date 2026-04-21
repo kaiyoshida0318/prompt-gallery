@@ -251,6 +251,24 @@ main { padding: 32px 40px 80px; }
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ========== VERSION BADGE ========== */
+.version-badge {
+  position: fixed;
+  bottom: 12px;
+  right: 14px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  background: var(--card);
+  padding: 4px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  letter-spacing: 0.05em;
+  pointer-events: none;
+  opacity: 0.6;
+  z-index: 10;
+}
 .card:hover .card-img img { transform: scale(1.04); }
 .card-body { padding: 12px 14px 14px; }
 .card-prompt {
