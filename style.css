@@ -220,9 +220,6 @@ main { padding: 32px 40px 80px; }
 .card-img img:not([src]), .card-img img[src=""] {
   opacity: 0;
 }
-.card-img {
-  position: relative;
-}
 .card-img::before {
   content: "";
   position: absolute;
@@ -284,15 +281,12 @@ main { padding: 32px 40px 80px; }
   background: rgba(27, 26, 23, 0.5);
   backdrop-filter: blur(4px);
   z-index: 100;
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
   overflow-y: auto;
   animation: fadeIn 0.2s ease;
-}
-.modal.open {
-  display: flex;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal-inner {
@@ -307,7 +301,6 @@ main { padding: 32px 40px 80px; }
   box-shadow: 0 30px 60px -20px rgba(0, 0, 0, 0.4);
 }
 .modal-inner.wide { max-width: 680px; }
-.modal-inner.extra-wide { max-width: 1100px; padding: 32px 36px; }
 .modal-inner.detail { max-width: 1100px; padding: 36px; }
 .modal-inner h2 {
   font-family: var(--serif);
@@ -315,24 +308,6 @@ main { padding: 32px 40px 80px; }
   font-weight: 600;
   margin: 0 0 8px;
   letter-spacing: -0.01em;
-}
-
-/* ========== FORM 2-COLUMN LAYOUT ========== */
-.form-grid {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 28px;
-  margin-top: 8px;
-}
-.form-left, .form-right {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.form-left textarea#input-prompt,
-.form-left textarea#edit-prompt {
-  flex: 1;
-  min-height: 260px;
 }
 .modal-close {
   position: absolute;
@@ -494,23 +469,23 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
 .edit-preview {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px;
+  gap: 16px;
+  padding: 14px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--bg);
-  margin-bottom: 4px;
+  margin-top: 4px;
 }
 .edit-preview img {
-  width: 64px;
-  height: 64px;
+  width: 80px;
+  height: 80px;
   object-fit: cover;
   border-radius: 2px;
   flex-shrink: 0;
   background: var(--bg-2);
 }
 .edit-preview-note {
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--ink-mute);
   margin: 0;
   line-height: 1.5;
@@ -620,11 +595,6 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
 }
 
 /* ========== RESPONSIVE ========== */
-@media (max-width: 900px) {
-  .form-grid { grid-template-columns: 1fr; gap: 16px; }
-  .form-left textarea#input-prompt,
-  .form-left textarea#edit-prompt { min-height: 180px; }
-}
 @media (max-width: 720px) {
   .site-header { padding: 20px; }
   .logo-full { height: 32px; }
@@ -633,7 +603,6 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
   .gallery { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
   .modal-inner { padding: 24px 20px; }
   .modal-inner.detail { padding: 20px; }
-  .modal-inner.extra-wide { padding: 24px 20px; }
   .detail-grid { grid-template-columns: 1fr; }
   .field-row { grid-template-columns: 1fr; }
   .stat { display: none; }
