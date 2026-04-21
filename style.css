@@ -284,12 +284,15 @@ main { padding: 32px 40px 80px; }
   background: rgba(27, 26, 23, 0.5);
   backdrop-filter: blur(4px);
   z-index: 100;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 20px;
   overflow-y: auto;
   animation: fadeIn 0.2s ease;
+}
+.modal.open {
+  display: flex;
 }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 .modal-inner {
