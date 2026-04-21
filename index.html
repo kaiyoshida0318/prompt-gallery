@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="style.css?v=1.5.0" />
 </head>
 <body>
 
@@ -41,7 +41,7 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.4.1</span>
+    <span class="version-badge">v1.5.0</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
@@ -72,39 +72,40 @@
 
 <!-- ============== 追加モーダル ============== -->
 <div id="add-modal" class="modal" style="display:none">
-  <div class="modal-inner wide">
+  <div class="modal-inner extra-wide">
     <button class="modal-close" data-close="add-modal">×</button>
     <h2>New Entry</h2>
 
-    <div id="dropzone" class="dropzone">
-      <div class="dz-icon">⇪</div>
-      <div class="dz-text">画像をドラッグ&ドロップ<br /><span>またはクリックしてファイル選択</span></div>
-      <input id="file-input" type="file" accept="image/*" hidden />
-    </div>
-    <div id="preview-wrap" class="preview-wrap" style="display:none">
-      <img id="preview-img" alt="preview" />
-      <button id="preview-clear">別の画像を選ぶ</button>
-    </div>
+    <div class="form-grid">
+      <div class="form-left">
+        <div id="dropzone" class="dropzone">
+          <div class="dz-icon">⇪</div>
+          <div class="dz-text">画像をドラッグ&ドロップ<br /><span>またはクリックしてファイル選択</span></div>
+          <input id="file-input" type="file" accept="image/*" hidden />
+        </div>
+        <div id="preview-wrap" class="preview-wrap" style="display:none">
+          <img id="preview-img" alt="preview" />
+          <button id="preview-clear">別の画像を選ぶ</button>
+        </div>
 
-    <label class="field-label">Prompt <span class="required">*</span></label>
-    <textarea id="input-prompt" rows="5" placeholder="生成に使用したプロンプトを貼り付け"></textarea>
+        <label class="field-label">Prompt <span class="required">*</span></label>
+        <textarea id="input-prompt" rows="14" placeholder="生成に使用したプロンプトを貼り付け"></textarea>
+      </div>
 
-    <label class="field-label">Negative Prompt</label>
-    <textarea id="input-negative" rows="2" placeholder="(任意)"></textarea>
+      <div class="form-right">
+        <label class="field-label">Negative Prompt</label>
+        <textarea id="input-negative" rows="4" placeholder="(任意)"></textarea>
 
-    <div class="field-row">
-      <div class="field-col">
         <label class="field-label">Model</label>
         <input id="input-model" type="text" placeholder="ChatGPT / Midjourney / SD など" />
-      </div>
-      <div class="field-col">
+
         <label class="field-label">Tags (カンマ区切り)</label>
         <input id="input-tags" type="text" placeholder="ポスター, 青系, 冬" />
+
+        <label class="field-label">Note</label>
+        <textarea id="input-note" rows="4" placeholder="メモ・用途など(任意)"></textarea>
       </div>
     </div>
-
-    <label class="field-label">Note</label>
-    <textarea id="input-note" rows="2" placeholder="メモ・用途など(任意)"></textarea>
 
     <div class="modal-actions">
       <button class="btn-secondary" data-close="add-modal">キャンセル</button>
@@ -163,34 +164,35 @@
 
 <!-- ============== 編集モーダル ============== -->
 <div id="edit-modal" class="modal" style="display:none">
-  <div class="modal-inner wide">
+  <div class="modal-inner extra-wide">
     <button class="modal-close" data-close="edit-modal">×</button>
     <h2>Edit Entry</h2>
 
-    <div class="edit-preview">
-      <img id="edit-preview-img" alt="" />
-      <p class="edit-preview-note">※ 画像の変更はできません。変更したい場合は削除して新規登録してください。</p>
-    </div>
+    <div class="form-grid">
+      <div class="form-left">
+        <div class="edit-preview">
+          <img id="edit-preview-img" alt="" />
+          <p class="edit-preview-note">※ 画像の変更はできません。変更したい場合は削除して新規登録してください。</p>
+        </div>
 
-    <label class="field-label">Prompt <span class="required">*</span></label>
-    <textarea id="edit-prompt" rows="5" placeholder="生成に使用したプロンプト"></textarea>
+        <label class="field-label">Prompt <span class="required">*</span></label>
+        <textarea id="edit-prompt" rows="14" placeholder="生成に使用したプロンプト"></textarea>
+      </div>
 
-    <label class="field-label">Negative Prompt</label>
-    <textarea id="edit-negative" rows="2" placeholder="(任意)"></textarea>
+      <div class="form-right">
+        <label class="field-label">Negative Prompt</label>
+        <textarea id="edit-negative" rows="4" placeholder="(任意)"></textarea>
 
-    <div class="field-row">
-      <div class="field-col">
         <label class="field-label">Model</label>
         <input id="edit-model" type="text" placeholder="ChatGPT / Midjourney / SD など" />
-      </div>
-      <div class="field-col">
+
         <label class="field-label">Tags (カンマ区切り)</label>
         <input id="edit-tags" type="text" placeholder="ポスター, 青系, 冬" />
+
+        <label class="field-label">Note</label>
+        <textarea id="edit-note" rows="4" placeholder="メモ・用途など(任意)"></textarea>
       </div>
     </div>
-
-    <label class="field-label">Note</label>
-    <textarea id="edit-note" rows="2" placeholder="メモ・用途など(任意)"></textarea>
 
     <div class="modal-actions">
       <button class="btn-secondary" data-close="edit-modal">キャンセル</button>
@@ -200,6 +202,6 @@
   </div>
 </div>
 
-<script src="app.js"></script>
+<script src="app.js?v=1.5.0"></script>
 </body>
 </html>
