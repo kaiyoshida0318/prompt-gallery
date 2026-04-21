@@ -56,29 +56,17 @@ input, textarea { font-family: inherit; }
   top: 0;
   z-index: 50;
 }
-.header-left { display: flex; align-items: center; gap: 16px; }
-.logo-mark {
-  font-family: var(--serif);
-  font-size: 34px;
-  color: var(--accent);
-  line-height: 1;
-  font-weight: 400;
-  transform: translateY(-2px);
+.header-left { display: flex; align-items: center; gap: 14px; }
+.logo-svg {
+  display: block;
+  flex-shrink: 0;
 }
 .logo-title {
   font-family: var(--serif);
   font-size: 24px;
   font-weight: 600;
   letter-spacing: -0.01em;
-  line-height: 1.1;
-}
-.logo-sub {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-mute);
-  margin-top: 2px;
+  line-height: 1;
 }
 .header-right { display: flex; align-items: center; gap: 18px; }
 .stat {
@@ -584,7 +572,7 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
 @media (max-width: 720px) {
   .site-header { padding: 20px; }
   .logo-title { font-size: 20px; }
-  .logo-sub { display: none; }
+  .logo-svg { width: 32px; height: 32px; }
   .toolbar { padding: 16px 20px; }
   main { padding: 20px; }
   .gallery { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
