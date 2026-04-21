@@ -56,9 +56,11 @@ input, textarea { font-family: inherit; }
   top: 0;
   z-index: 50;
 }
-.header-left { display: flex; align-items: center; gap: 14px; }
-.logo-svg {
+.header-left { display: flex; align-items: center; }
+.logo-full {
   display: block;
+  height: 40px;
+  width: auto;
   flex-shrink: 0;
 }
 .logo-title {
@@ -571,8 +573,7 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
 /* ========== RESPONSIVE ========== */
 @media (max-width: 720px) {
   .site-header { padding: 20px; }
-  .logo-title { font-size: 20px; }
-  .logo-svg { width: 32px; height: 32px; }
+  .logo-full { height: 32px; }
   .toolbar { padding: 16px 20px; }
   main { padding: 20px; }
   .gallery { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
