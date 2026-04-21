@@ -233,9 +233,17 @@ function renderTagFilters() {
 }
 
 // ---------- 詳細モーダル ----------
+function closeAllModals() {
+  ["add-modal", "edit-modal", "detail-modal"].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
+}
+
 function openDetail(id) {
   const e = entries.find((x) => x.id === id);
   if (!e) return;
+  closeAllModals();
   currentDetailId = id;
   $("detail-img").src = "";
   loadImageInto($("detail-img"), e.image);
@@ -545,6 +553,7 @@ async function init() {
 
 (function start() {
   bindEvents();
+  closeAllModals(); // 念のため全モーダルを閉じた状態で起動
   auth = loadAuth();
   if (auth) {
     $("auth-modal").style.display = "none";
