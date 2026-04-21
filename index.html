@@ -41,7 +41,7 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.3.3</span>
+    <span class="version-badge">v1.4.0</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
@@ -153,10 +153,50 @@
         </div>
 
         <div class="detail-actions">
+          <button id="btn-edit" class="btn-secondary">編集</button>
           <button id="btn-delete" class="btn-danger">削除</button>
         </div>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ============== 編集モーダル ============== -->
+<div id="edit-modal" class="modal" style="display:none">
+  <div class="modal-inner wide">
+    <button class="modal-close" data-close="edit-modal">×</button>
+    <h2>Edit Entry</h2>
+
+    <div class="edit-preview">
+      <img id="edit-preview-img" alt="" />
+      <p class="edit-preview-note">※ 画像の変更はできません。変更したい場合は削除して新規登録してください。</p>
+    </div>
+
+    <label class="field-label">Prompt <span class="required">*</span></label>
+    <textarea id="edit-prompt" rows="5" placeholder="生成に使用したプロンプト"></textarea>
+
+    <label class="field-label">Negative Prompt</label>
+    <textarea id="edit-negative" rows="2" placeholder="(任意)"></textarea>
+
+    <div class="field-row">
+      <div class="field-col">
+        <label class="field-label">Model</label>
+        <input id="edit-model" type="text" placeholder="ChatGPT / Midjourney / SD など" />
+      </div>
+      <div class="field-col">
+        <label class="field-label">Tags (カンマ区切り)</label>
+        <input id="edit-tags" type="text" placeholder="ポスター, 青系, 冬" />
+      </div>
+    </div>
+
+    <label class="field-label">Note</label>
+    <textarea id="edit-note" rows="2" placeholder="メモ・用途など(任意)"></textarea>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" data-close="edit-modal">キャンセル</button>
+      <button id="btn-update" class="btn-primary">更新する</button>
+    </div>
+    <div id="edit-status" class="save-status"></div>
   </div>
 </div>
 
