@@ -37,7 +37,8 @@ async function ghFetch(path, options = {}) {
       ...(options.headers || {})
     }
   });
-  if (!res.ok && res.status !== 404) {
+  // 404, 409, 422 は呼び出し元で個別に処理するため、ここでは例外にしない
+  if (!res.ok && res.status !== 404 && res.status !== 409 && res.status !== 422) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || `GitHub API error: ${res.status}`);
   }
@@ -62,23 +63,60 @@ async function loadData() {
   }
 }
 
-async function saveData(commitMessage) {
-  const body = {
-    message: commitMessage,
-    content: b64encode(JSON.stringify({ entries }, null, 2)),
-    branch: auth.branch
-  };
-  if (dataSha) body.sha = dataSha;
-  const res = await ghFetch(`contents/${DATA_PATH}`, {
-    method: "PUT",
-    body: JSON.stringify(body)
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || "data.json の保存に失敗");
+async function saveData(commitMessage, mergeFn) {
+  // mergeFn: 競合時にどう entries をマージするかの関数 (oldEntries) => newEntries
+  // 指定されない場合は現在の entries をそのまま使う(=最新を上書き)
+  const MAX_RETRIES = 3;
+
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    const body = {
+      message: commitMessage,
+      content: b64encode(JSON.stringify({ entries }, null, 2)),
+      branch: auth.branch
+    };
+    if (dataSha) body.sha = dataSha;
+
+    const res = await ghFetch(`contents/${DATA_PATH}`, {
+      method: "PUT",
+      body: JSON.stringify(body)
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      dataSha = result.content.sha;
+      return;
+    }
+
+    // sha不一致による競合 (GitHub APIは409または422を返すことがある)
+    const errBody = await res.json().catch(() => ({}));
+    const isConflict = res.status === 409 || res.status === 422 ||
+                       (errBody.message && /does not match|sha/i.test(errBody.message));
+
+    if (isConflict) {
+      console.warn(`競合検出 (attempt ${attempt + 1}/${MAX_RETRIES}) - 最新のdata.jsonを取得してリトライ`);
+      // 自分の変更を一時保存
+      const myEntries = entries.slice();
+      // 最新を取得
+      await loadData();
+      // マージ:mergeFnがあれば呼ぶ。なければ自分の変更を最新にマージ
+      if (mergeFn) {
+        entries = mergeFn(entries);
+      } else {
+        // デフォルト:idベースでマージ。自分の変更を優先しつつ他の人の変更も保持
+        const myMap = new Map(myEntries.map((e) => [e.id, e]));
+        const merged = entries.filter((e) => !myMap.has(e.id));
+        merged.push(...myEntries);
+        merged.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
+        entries = merged;
+      }
+      continue;
+    }
+
+    // それ以外のエラーはスロー
+    throw new Error(errBody.message || "data.json の保存に失敗");
   }
-  const result = await res.json();
-  dataSha = result.content.sha;
+
+  throw new Error("data.json の保存が複数回競合しました。ページをリロードして再度お試しください。");
 }
 
 async function uploadImage(path, base64Content, commitMessage) {
