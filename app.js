@@ -156,11 +156,30 @@ const imageCache = new Map();
 async function fetchImageAsBlobUrl(path) {
   if (imageCache.has(path)) return imageCache.get(path);
   try {
+    // まず Contents API で取得を試みる
     const res = await ghFetch(`contents/${path}?ref=${auth.branch}`);
     if (!res.ok) throw new Error(`画像取得失敗: ${path}`);
     const data = await res.json();
+
+    let cleanBase64;
+    if (data.content && data.encoding === "base64") {
+      // 1MB以下:Contents APIで取得できたbase64を使う
+      cleanBase64 = data.content.replace(/\s/g, "");
+    } else if (data.sha) {
+      // 1MB超:Contents APIだとcontentが空(encoding:'none')
+      // Git Blob APIに切り替えて取得(最大100MBまで対応)
+      console.log(`大きいファイル(${data.size}bytes) - Git Blob APIで取得: ${path}`);
+      const blobRes = await ghFetch(`git/blobs/${data.sha}`);
+      if (!blobRes.ok) throw new Error(`Git Blob API失敗: ${path}`);
+      const blobData = await blobRes.json();
+      if (!blobData.content) throw new Error(`Git Blob APIでもcontentが空: ${path}`);
+      cleanBase64 = blobData.content.replace(/\s/g, "");
+    } else {
+      throw new Error(`画像のcontentもshaも取得できず: ${path}`);
+    }
+
     // base64 → Blob に変換
-    const binary = atob(data.content.replace(/\n/g, ""));
+    const binary = atob(cleanBase64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
     const ext = (path.split(".").pop() || "png").toLowerCase();
@@ -412,6 +431,11 @@ function resetAddForm() {
 function handleFile(file) {
   if (!file || !file.type.startsWith("image/")) {
     alert("画像ファイルを選んでください");
+    return;
+  }
+  // GitHubの上限は100MBだが、APIで安定して扱えるのは50MB程度まで
+  if (file.size > 50 * 1024 * 1024) {
+    alert("画像が大きすぎます(50MB超)。サイズを小さくしてください。");
     return;
   }
   const reader = new FileReader();
