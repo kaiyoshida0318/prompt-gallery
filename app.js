@@ -316,7 +316,10 @@ async function deleteEntry() {
     await deleteFile(e.image, null, `Delete image: ${e.id}`);
     // 次にdata.jsonから削除
     entries = entries.filter((x) => x.id !== e.id);
-    await saveData(`Delete entry: ${e.id}`);
+    // 競合時のマージ処理:最新entriesから対象idを除外
+    await saveData(`Delete entry: ${e.id}`, (latestEntries) => {
+      return latestEntries.filter((x) => x.id !== e.id);
+    });
     $("detail-modal").style.display = "none";
     render();
   } catch (err) {
@@ -357,14 +360,11 @@ async function updateEntry() {
   $("edit-status").className = "save-status";
 
   try {
-    // 最新を取得して競合回避
-    await loadData();
-
     const idx = entries.findIndex((x) => x.id === currentDetailId);
     if (idx === -1) throw new Error("対象のエントリーが見つかりません");
 
     // 元の image, id, createdAt は保持して、他を更新
-    entries[idx] = {
+    const updated = {
       ...entries[idx],
       prompt,
       negative: $("edit-negative").value.trim() || undefined,
@@ -373,8 +373,12 @@ async function updateEntry() {
       note: $("edit-note").value.trim() || undefined,
       updatedAt: new Date().toISOString()
     };
+    entries[idx] = updated;
 
-    await saveData(`Update entry: ${currentDetailId}`);
+    // 競合時のマージ処理:最新entriesの中で同じidを更新版に置き換え
+    await saveData(`Update entry: ${currentDetailId}`, (latestEntries) => {
+      return latestEntries.map((e) => e.id === updated.id ? updated : e);
+    });
 
     $("edit-status").textContent = "✓ 更新しました";
     $("edit-status").className = "save-status ok";
@@ -452,10 +456,12 @@ async function saveEntry() {
       createdAt: new Date().toISOString()
     };
 
-    // 最新を取得して競合回避
-    await loadData();
+    // entries に追加 → 保存(競合時は saveData が自動でマージしてリトライ)
     entries.unshift(entry);
-    await saveData(`Add entry: ${id}`);
+    await saveData(`Add entry: ${id}`, (latestEntries) => {
+      // 最新のentriesに、自分のentryを先頭に追加
+      return [entry, ...latestEntries.filter((e) => e.id !== entry.id)];
+    });
 
     $("save-status").textContent = "✓ 保存しました";
     $("save-status").className = "save-status ok";
