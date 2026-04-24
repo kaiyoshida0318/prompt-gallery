@@ -13,6 +13,10 @@ let entries = [];       // 全エントリー
 let activeTag = null;   // タグフィルタ
 let currentDetailId = null;
 let pendingImage = null; // { base64, mimeType, fileName }
+let pendingSubImages = []; // 追加モーダル用サブ画像(保存前)
+let editingSubImagesNew = []; // 編集モーダル:新規追加されたサブ画像
+let editingSubImagesExisting = []; // 編集モーダル:既存のサブ画像path
+let editingSubImagesRemoved = []; // 編集モーダル:削除予定の既存pathリスト
 
 // ---------- util ----------
 const $ = (id) => document.getElementById(id);
@@ -233,7 +237,7 @@ function render() {
   const filtered = entries.filter((e) => {
     if (activeTag && !(e.tags || []).includes(activeTag)) return false;
     if (!q) return true;
-    const hay = [e.prompt, e.negative, e.note, e.model, ...(e.tags || [])].filter(Boolean).join(" ").toLowerCase();
+    const hay = [e.prompt, e.negative, e.note, e.model, e.category, ...(e.tags || [])].filter(Boolean).join(" ").toLowerCase();
     return hay.includes(q);
   });
 
@@ -255,7 +259,7 @@ function render() {
       <div class="card-body">
         <div class="card-prompt">${escapeHtml(e.prompt || "")}</div>
         <div class="card-meta">
-          <span class="card-model">${escapeHtml(e.model || "—")}</span>
+          <span class="card-model">${escapeHtml(e.category || e.model || "—")}</span>
           <span>${fmtDate(e.createdAt)}</span>
         </div>
       </div>
@@ -289,6 +293,26 @@ function renderTagFilters() {
   });
 }
 
+// 編集モーダル用:新規サブ画像を読み込み
+function handleEditSubFiles(files) {
+  for (const file of files) {
+    if (!file.type.startsWith("image/")) continue;
+    if (file.size > 50 * 1024 * 1024) {
+      alert(`${file.name} は大きすぎます(50MB超)。スキップします。`);
+      continue;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      const base64 = dataUrl.split(",")[1];
+      const ext = (file.name.split(".").pop() || "png").toLowerCase();
+      editingSubImagesNew.push({ base64, mimeType: file.type, ext, dataUrl });
+      refreshEditSubPreview();
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
 // ---------- 詳細モーダル ----------
 function closeAllModals() {
   ["add-modal", "edit-modal", "detail-modal"].forEach((id) => {
@@ -305,8 +329,34 @@ function openDetail(id) {
   $("detail-img").src = "";
   loadImageInto($("detail-img"), e.image);
   $("detail-prompt").textContent = e.prompt || "";
-  $("detail-model").textContent = e.model || "モデル未設定";
   $("detail-date").textContent = fmtDate(e.createdAt);
+
+  // カテゴリ(新)
+  if (e.category) {
+    $("detail-category").style.display = "inline-block";
+    $("detail-category").textContent = e.category;
+  } else $("detail-category").style.display = "none";
+
+  // モデル(旧データ互換)
+  if (e.model) {
+    $("detail-model").style.display = "inline-block";
+    $("detail-model").textContent = e.model;
+  } else $("detail-model").style.display = "none";
+
+  // サブ画像(新)
+  if (e.subImages && e.subImages.length) {
+    $("sub-images-section").style.display = "block";
+    $("detail-sub-images").innerHTML = e.subImages.map((path) =>
+      `<img data-load-path="${escapeHtml(path)}" data-full-path="${escapeHtml(path)}" alt="" />`
+    ).join("");
+    $("detail-sub-images").querySelectorAll("img[data-load-path]").forEach((img) => {
+      loadImageInto(img, img.dataset.loadPath);
+      img.addEventListener("click", () => {
+        // クリックで新タブで開く(Blob URL)
+        if (img.src) window.open(img.src);
+      });
+    });
+  } else $("sub-images-section").style.display = "none";
 
   if (e.negative) {
     $("negative-section").style.display = "block";
@@ -331,11 +381,18 @@ async function deleteEntry() {
   if (!e) return;
   if (!confirm("このエントリーを削除しますか? (画像ファイルも削除されます)")) return;
   try {
-    // まず画像を削除
+    // メイン画像を削除
     await deleteFile(e.image, null, `Delete image: ${e.id}`);
-    // 次にdata.jsonから削除
+    // サブ画像も削除(失敗しても続行)
+    for (const subPath of (e.subImages || [])) {
+      try {
+        await deleteFile(subPath, null, `Delete sub-image: ${e.id}`);
+      } catch (err) {
+        console.warn("サブ画像削除失敗(続行):", subPath, err);
+      }
+    }
+    // data.jsonから削除
     entries = entries.filter((x) => x.id !== e.id);
-    // 競合時のマージ処理:最新entriesから対象idを除外
     await saveData(`Delete entry: ${e.id}`, (latestEntries) => {
       return latestEntries.filter((x) => x.id !== e.id);
     });
@@ -355,15 +412,58 @@ function openEdit() {
   loadImageInto($("edit-preview-img"), e.image);
   // 既存の値をフォームに読み込み
   $("edit-prompt").value = e.prompt || "";
-  $("edit-negative").value = e.negative || "";
-  $("edit-model").value = e.model || "";
-  $("edit-tags").value = (e.tags || []).join(", ");
-  $("edit-note").value = e.note || "";
+  $("edit-category").value = e.category || "";
   $("edit-status").textContent = "";
   $("edit-status").className = "save-status";
+
+  // サブ画像の状態を初期化
+  editingSubImagesNew = [];
+  editingSubImagesExisting = (e.subImages || []).slice();
+  editingSubImagesRemoved = [];
+  refreshEditSubPreview();
+
+  $("edit-sub-file-input").value = "";
   // 詳細モーダルを閉じて編集モーダルを開く
   $("detail-modal").style.display = "none";
   $("edit-modal").style.display = "flex";
+}
+
+// 編集モーダルのサブ画像プレビュー全体を再描画
+function refreshEditSubPreview() {
+  const list = $("edit-sub-preview-list");
+  const existingHtml = editingSubImagesExisting.map((path, i) => `
+    <div class="sub-preview-item" data-kind="existing" data-index="${i}">
+      <img data-load-path="${escapeHtml(path)}" alt="" />
+      <button class="sub-preview-remove" data-kind="existing" data-index="${i}" title="削除">×</button>
+    </div>
+  `).join("");
+  const newHtml = editingSubImagesNew.map((item, i) => `
+    <div class="sub-preview-item" data-kind="new" data-index="${i}">
+      <img src="${item.dataUrl}" alt="" />
+      <button class="sub-preview-remove" data-kind="new" data-index="${i}" title="削除">×</button>
+    </div>
+  `).join("");
+  list.innerHTML = existingHtml + newHtml;
+
+  // 既存画像の読み込み
+  list.querySelectorAll("img[data-load-path]").forEach((img) => {
+    loadImageInto(img, img.dataset.loadPath);
+  });
+  // 削除ボタン
+  list.querySelectorAll(".sub-preview-remove").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.index);
+      if (btn.dataset.kind === "existing") {
+        // 既存画像を削除予定リストに入れて、リストから外す
+        editingSubImagesRemoved.push(editingSubImagesExisting[idx]);
+        editingSubImagesExisting.splice(idx, 1);
+      } else {
+        editingSubImagesNew.splice(idx, 1);
+      }
+      refreshEditSubPreview();
+    });
+  });
 }
 
 async function updateEntry() {
@@ -381,15 +481,41 @@ async function updateEntry() {
   try {
     const idx = entries.findIndex((x) => x.id === currentDetailId);
     if (idx === -1) throw new Error("対象のエントリーが見つかりません");
+    const entryId = entries[idx].id;
+
+    // 新規サブ画像をアップロード
+    const newSubPaths = [];
+    const existingCount = editingSubImagesExisting.length;
+    for (let i = 0; i < editingSubImagesNew.length; i++) {
+      $("edit-status").textContent = `サブ画像をアップロード中… (${i + 1}/${editingSubImagesNew.length})`;
+      const sub = editingSubImagesNew[i];
+      // 既存と衝突しないようにタイムスタンプを付ける
+      const subPath = `${IMAGES_DIR}/${entryId}-sub-${Date.now()}-${existingCount + i + 1}.${sub.ext}`;
+      await uploadImage(subPath, sub.base64, `Add sub-image: ${entryId}`);
+      newSubPaths.push(subPath);
+    }
+
+    // 削除予定の既存サブ画像を削除
+    for (const path of editingSubImagesRemoved) {
+      try {
+        await deleteFile(path, null, `Delete sub-image: ${entryId}`);
+      } catch (e) {
+        console.warn("サブ画像削除失敗(続行):", path, e);
+      }
+    }
+
+    $("edit-status").textContent = "保存中…";
+
+    // 最終的なサブ画像リスト
+    const finalSubImages = [...editingSubImagesExisting, ...newSubPaths];
 
     // 元の image, id, createdAt は保持して、他を更新
+    // negative, model, tags, note は既存の値があれば保持(今UIでは編集不可だが保存しておく)
     const updated = {
       ...entries[idx],
       prompt,
-      negative: $("edit-negative").value.trim() || undefined,
-      model: $("edit-model").value.trim() || undefined,
-      tags: $("edit-tags").value.split(",").map((t) => t.trim()).filter(Boolean),
-      note: $("edit-note").value.trim() || undefined,
+      category: $("edit-category").value.trim() || undefined,
+      subImages: finalSubImages.length ? finalSubImages : undefined,
       updatedAt: new Date().toISOString()
     };
     entries[idx] = updated;
@@ -403,6 +529,9 @@ async function updateEntry() {
     $("edit-status").className = "save-status ok";
     setTimeout(() => {
       $("edit-modal").style.display = "none";
+      editingSubImagesNew = [];
+      editingSubImagesExisting = [];
+      editingSubImagesRemoved = [];
       render();
     }, 700);
   } catch (err) {
@@ -416,14 +545,14 @@ async function updateEntry() {
 // ---------- 追加 ----------
 function resetAddForm() {
   pendingImage = null;
+  pendingSubImages = [];
   $("preview-wrap").style.display = "none";
   $("dropzone").style.display = "block";
   $("file-input").value = "";
+  $("sub-file-input").value = "";
+  $("sub-preview-list").innerHTML = "";
   $("input-prompt").value = "";
-  $("input-negative").value = "";
-  $("input-model").value = "";
-  $("input-tags").value = "";
-  $("input-note").value = "";
+  $("input-category").value = "";
   $("save-status").textContent = "";
   $("save-status").className = "save-status";
 }
@@ -451,6 +580,70 @@ function handleFile(file) {
   reader.readAsDataURL(file);
 }
 
+// ---------- サブ画像 ----------
+function handleSubFiles(files, targetListId, pendingArray) {
+  for (const file of files) {
+    if (!file.type.startsWith("image/")) continue;
+    if (file.size > 50 * 1024 * 1024) {
+      alert(`${file.name} は大きすぎます(50MB超)。スキップします。`);
+      continue;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target.result;
+      const base64 = dataUrl.split(",")[1];
+      const ext = (file.name.split(".").pop() || "png").toLowerCase();
+      const item = { base64, mimeType: file.type, ext, dataUrl, tempId: genId() };
+      pendingArray.push(item);
+      renderSubPreview(targetListId, pendingArray);
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function renderSubPreview(listId, pendingArray) {
+  const list = $(listId);
+  list.innerHTML = pendingArray.map((item, i) => `
+    <div class="sub-preview-item" data-temp-id="${item.tempId}">
+      <img src="${item.dataUrl || ''}" alt="" />
+      ${item.uploading ? '<div class="sub-preview-uploading">up…</div>' : ''}
+      <button class="sub-preview-remove" data-index="${i}" title="削除">×</button>
+    </div>
+  `).join("");
+  // 削除ボタン
+  list.querySelectorAll(".sub-preview-remove").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.index);
+      pendingArray.splice(idx, 1);
+      renderSubPreview(listId, pendingArray);
+    });
+  });
+}
+
+// 既存のサブ画像(path文字列)をプレビュー表示
+function renderExistingSubImages(listId, pathArray, removeCallback) {
+  const list = $(listId);
+  list.innerHTML = pathArray.map((path, i) => `
+    <div class="sub-preview-item" data-path="${escapeHtml(path)}">
+      <img data-load-path="${escapeHtml(path)}" alt="" />
+      <button class="sub-preview-remove" data-index="${i}" title="削除">×</button>
+    </div>
+  `).join("");
+  // 画像の読み込み
+  list.querySelectorAll("img[data-load-path]").forEach((img) => {
+    loadImageInto(img, img.dataset.loadPath);
+  });
+  // 削除ボタン
+  list.querySelectorAll(".sub-preview-remove").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.index);
+      removeCallback(idx);
+    });
+  });
+}
+
 async function saveEntry() {
   const prompt = $("input-prompt").value.trim();
   if (!pendingImage) { alert("画像を選択してください"); return; }
@@ -467,23 +660,30 @@ async function saveEntry() {
     const imgPath = `${IMAGES_DIR}/${id}.${ext}`;
     await uploadImage(imgPath, pendingImage.base64, `Add image: ${id}`);
 
+    // サブ画像をアップロード
+    const subImagePaths = [];
+    for (let i = 0; i < pendingSubImages.length; i++) {
+      $("save-status").textContent = `サブ画像をアップロード中… (${i + 1}/${pendingSubImages.length})`;
+      const sub = pendingSubImages[i];
+      const subPath = `${IMAGES_DIR}/${id}-sub-${i + 1}.${sub.ext}`;
+      await uploadImage(subPath, sub.base64, `Add sub-image: ${id} #${i + 1}`);
+      subImagePaths.push(subPath);
+    }
+
     $("save-status").textContent = "メタデータを保存中…";
 
     const entry = {
       id,
       image: imgPath,
+      subImages: subImagePaths.length ? subImagePaths : undefined,
+      category: $("input-category").value.trim() || undefined,
       prompt,
-      negative: $("input-negative").value.trim() || undefined,
-      model: $("input-model").value.trim() || undefined,
-      tags: $("input-tags").value.split(",").map((t) => t.trim()).filter(Boolean),
-      note: $("input-note").value.trim() || undefined,
       createdAt: new Date().toISOString()
     };
 
     // entries に追加 → 保存(競合時は saveData が自動でマージしてリトライ)
     entries.unshift(entry);
     await saveData(`Add entry: ${id}`, (latestEntries) => {
-      // 最新のentriesに、自分のentryを先頭に追加
       return [entry, ...latestEntries.filter((e) => e.id !== entry.id)];
     });
 
@@ -567,7 +767,7 @@ function bindEvents() {
     });
   });
 
-  // ドロップゾーン
+  // ドロップゾーン(メイン画像)
   const dz = $("dropzone");
   dz.addEventListener("click", () => $("file-input").click());
   dz.addEventListener("dragover", (e) => { e.preventDefault(); dz.classList.add("drag"); });
@@ -583,6 +783,36 @@ function bindEvents() {
     $("preview-wrap").style.display = "none";
     $("dropzone").style.display = "block";
     $("file-input").value = "";
+  });
+
+  // 追加モーダル:サブ画像ドロップゾーン
+  const subDz = $("sub-dropzone");
+  subDz.addEventListener("click", () => $("sub-file-input").click());
+  subDz.addEventListener("dragover", (e) => { e.preventDefault(); subDz.classList.add("drag"); });
+  subDz.addEventListener("dragleave", () => subDz.classList.remove("drag"));
+  subDz.addEventListener("drop", (e) => {
+    e.preventDefault();
+    subDz.classList.remove("drag");
+    handleSubFiles(e.dataTransfer.files, "sub-preview-list", pendingSubImages);
+  });
+  $("sub-file-input").addEventListener("change", (e) => {
+    handleSubFiles(e.target.files, "sub-preview-list", pendingSubImages);
+    e.target.value = "";
+  });
+
+  // 編集モーダル:サブ画像ドロップゾーン
+  const editSubDz = $("edit-sub-dropzone");
+  editSubDz.addEventListener("click", () => $("edit-sub-file-input").click());
+  editSubDz.addEventListener("dragover", (e) => { e.preventDefault(); editSubDz.classList.add("drag"); });
+  editSubDz.addEventListener("dragleave", () => editSubDz.classList.remove("drag"));
+  editSubDz.addEventListener("drop", (e) => {
+    e.preventDefault();
+    editSubDz.classList.remove("drag");
+    handleEditSubFiles(e.dataTransfer.files);
+  });
+  $("edit-sub-file-input").addEventListener("change", (e) => {
+    handleEditSubFiles(e.target.files);
+    e.target.value = "";
   });
 
   // 保存
