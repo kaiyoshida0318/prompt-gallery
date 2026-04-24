@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.5.0" />
+<link rel="stylesheet" href="style.css?v=1.6.0" />
 </head>
 <body>
 
@@ -41,7 +41,7 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.5.4</span>
+    <span class="version-badge">v1.6.0</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
@@ -78,6 +78,7 @@
 
     <div class="form-grid">
       <div class="form-left">
+        <label class="field-label">メイン画像 <span class="required">*</span></label>
         <div id="dropzone" class="dropzone">
           <div class="dz-icon">⇪</div>
           <div class="dz-text">画像をドラッグ&ドロップ<br /><span>またはクリックしてファイル選択</span></div>
@@ -88,22 +89,27 @@
           <button id="preview-clear">別の画像を選ぶ</button>
         </div>
 
-        <label class="field-label">Prompt <span class="required">*</span></label>
-        <textarea id="input-prompt" rows="14" placeholder="生成に使用したプロンプトを貼り付け"></textarea>
+        <label class="field-label">サブ画像(複数OK)</label>
+        <div id="sub-dropzone" class="dropzone sub-dropzone">
+          <div class="dz-icon" style="font-size:22px">+</div>
+          <div class="dz-text" style="font-size:12px">ドラッグ&ドロップで追加<br /><span>複数同時OK</span></div>
+          <input id="sub-file-input" type="file" accept="image/*" multiple hidden />
+        </div>
+        <div id="sub-preview-list" class="sub-preview-list"></div>
+
+        <label class="field-label">プロンプト <span class="required">*</span></label>
+        <textarea id="input-prompt" rows="10" placeholder="生成に使用したプロンプトを貼り付け"></textarea>
       </div>
 
       <div class="form-right">
-        <label class="field-label">Negative Prompt</label>
-        <textarea id="input-negative" rows="4" placeholder="(任意)"></textarea>
-
-        <label class="field-label">Model</label>
-        <input id="input-model" type="text" placeholder="ChatGPT / Midjourney / SD など" />
-
-        <label class="field-label">Tags (カンマ区切り)</label>
-        <input id="input-tags" type="text" placeholder="ポスター, 青系, 冬" />
-
-        <label class="field-label">Note</label>
-        <textarea id="input-note" rows="4" placeholder="メモ・用途など(任意)"></textarea>
+        <label class="field-label">カテゴリ</label>
+        <input id="input-category" type="text" list="category-suggestions" placeholder="カテゴリを入力または選択" />
+        <datalist id="category-suggestions">
+          <option value="まとめ出力"></option>
+          <option value="良い修正"></option>
+          <option value="サムネ案"></option>
+        </datalist>
+        <p class="field-hint">候補:まとめ出力 / 良い修正 / サムネ案<br />(自由入力もOK)</p>
       </div>
     </div>
 
@@ -125,7 +131,8 @@
       </div>
       <div class="detail-info">
         <div class="detail-meta">
-          <span id="detail-model" class="chip"></span>
+          <span id="detail-category" class="chip" style="display:none"></span>
+          <span id="detail-model" class="chip" style="display:none"></span>
           <span id="detail-date" class="date"></span>
         </div>
 
@@ -134,6 +141,11 @@
           <button id="copy-prompt" class="btn-copy">copy</button>
         </div>
         <pre id="detail-prompt" class="prompt-box"></pre>
+
+        <div id="sub-images-section" style="display:none">
+          <div class="section-label"><span>サブ画像</span></div>
+          <div id="detail-sub-images" class="detail-sub-images"></div>
+        </div>
 
         <div id="negative-section" style="display:none">
           <div class="section-label">
@@ -170,27 +182,33 @@
 
     <div class="form-grid">
       <div class="form-left">
+        <label class="field-label">メイン画像(変更不可)</label>
         <div class="edit-preview">
           <img id="edit-preview-img" alt="" />
           <p class="edit-preview-note">※ 画像の変更はできません。変更したい場合は削除して新規登録してください。</p>
         </div>
 
-        <label class="field-label">Prompt <span class="required">*</span></label>
-        <textarea id="edit-prompt" rows="14" placeholder="生成に使用したプロンプト"></textarea>
+        <label class="field-label">サブ画像(複数OK)</label>
+        <div id="edit-sub-dropzone" class="dropzone sub-dropzone">
+          <div class="dz-icon" style="font-size:22px">+</div>
+          <div class="dz-text" style="font-size:12px">ドラッグ&ドロップで追加<br /><span>複数同時OK</span></div>
+          <input id="edit-sub-file-input" type="file" accept="image/*" multiple hidden />
+        </div>
+        <div id="edit-sub-preview-list" class="sub-preview-list"></div>
+
+        <label class="field-label">プロンプト <span class="required">*</span></label>
+        <textarea id="edit-prompt" rows="10" placeholder="生成に使用したプロンプト"></textarea>
       </div>
 
       <div class="form-right">
-        <label class="field-label">Negative Prompt</label>
-        <textarea id="edit-negative" rows="4" placeholder="(任意)"></textarea>
-
-        <label class="field-label">Model</label>
-        <input id="edit-model" type="text" placeholder="ChatGPT / Midjourney / SD など" />
-
-        <label class="field-label">Tags (カンマ区切り)</label>
-        <input id="edit-tags" type="text" placeholder="ポスター, 青系, 冬" />
-
-        <label class="field-label">Note</label>
-        <textarea id="edit-note" rows="4" placeholder="メモ・用途など(任意)"></textarea>
+        <label class="field-label">カテゴリ</label>
+        <input id="edit-category" type="text" list="edit-category-suggestions" placeholder="カテゴリを入力または選択" />
+        <datalist id="edit-category-suggestions">
+          <option value="まとめ出力"></option>
+          <option value="良い修正"></option>
+          <option value="サムネ案"></option>
+        </datalist>
+        <p class="field-hint">候補:まとめ出力 / 良い修正 / サムネ案<br />(自由入力もOK)</p>
       </div>
     </div>
 
@@ -202,6 +220,6 @@
   </div>
 </div>
 
-<script src="app.js?v=1.5.4"></script>
+<script src="app.js?v=1.6.0"></script>
 </body>
 </html>
