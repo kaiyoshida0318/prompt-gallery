@@ -560,6 +560,81 @@ input:focus, textarea:focus { outline: none; border-color: var(--accent); }
 textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-height: 1.6; }
 .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 
+/* ========== TAG INPUT (チップ式) ========== */
+.tag-input-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  min-height: 40px;
+  transition: border-color 0.15s;
+}
+.tag-input-wrap:focus-within { border-color: var(--accent); }
+.tag-input-chips {
+  display: contents;
+}
+.tag-chip-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 4px 3px 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.tag-chip-input-remove {
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--accent);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s;
+  line-height: 1;
+}
+.tag-chip-input-remove:hover {
+  background: var(--accent);
+  color: #fff;
+}
+.tag-input-field {
+  flex: 1;
+  min-width: 120px;
+  padding: 4px 6px !important;
+  border: none !important;
+  background: transparent !important;
+  font-size: 12.5px;
+  outline: none;
+}
+.tag-input-field:focus { border: none !important; }
+
+/* カードのタグ表示 */
+.card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 4px 0 6px;
+}
+.card-tag {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  color: var(--ink-soft);
+  background: var(--bg-2);
+  padding: 1px 7px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
 .btn-primary {
   background: var(--ink);
   color: var(--bg);
