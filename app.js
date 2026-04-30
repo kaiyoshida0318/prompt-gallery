@@ -279,7 +279,7 @@ function render() {
     if (activeTabId !== "_all" && e.tabId !== activeTabId) return false;
     if (activeTag && !(e.tags || []).includes(activeTag)) return false;
     if (!q) return true;
-    const hay = [e.title, e.prompt, e.negative, e.note, e.model, e.category, ...(e.tags || [])].filter(Boolean).join(" ").toLowerCase();
+    const hay = [e.title, e.mainText, e.prompt, e.negative, e.note, e.model, e.category, ...(e.tags || [])].filter(Boolean).join(" ").toLowerCase();
     return hay.includes(q);
   });
 
@@ -318,9 +318,13 @@ function render() {
   }
   $("empty-state").style.display = "none";
 
-  gallery.innerHTML = filtered.map((e) => `
+  gallery.innerHTML = filtered.map((e) => {
+    const imgArea = e.image
+      ? `<div class="card-img"><img data-path="${escapeHtml(e.image)}" alt="" loading="lazy" /></div>`
+      : `<div class="card-text-main"><div class="card-text-main-inner">${escapeHtml(e.mainText || "(本文なし)")}</div></div>`;
+    return `
     <div class="card" data-id="${e.id}">
-      <div class="card-img"><img data-path="${escapeHtml(e.image)}" alt="" loading="lazy" /></div>
+      ${imgArea}
       <div class="card-body">
         ${e.title ? `<h3 class="card-title">${escapeHtml(e.title)}</h3>` : '<h3 class="card-title card-title-placeholder">無題</h3>'}
         <div class="card-category">${escapeHtml(getTabNameById(e.tabId) || "—")}</div>
@@ -330,8 +334,8 @@ function render() {
           <span>${fmtDate(e.createdAt)}</span>
         </div>
       </div>
-    </div>
-  `).join("");
+    </div>`;
+  }).join("");
 
   // 全ての画像を非同期で読み込む
   document.querySelectorAll(".card-img img[data-path]").forEach((img) => {
@@ -803,8 +807,17 @@ function openDetail(id) {
   if (!e) return;
   closeAllModals();
   currentDetailId = id;
-  $("detail-img").src = "";
-  loadImageInto($("detail-img"), e.image);
+  // メイン画像 or テキストを切り替え
+  if (e.image) {
+    $("detail-img").style.display = "";
+    $("detail-text-main").style.display = "none";
+    $("detail-img").src = "";
+    loadImageInto($("detail-img"), e.image);
+  } else {
+    $("detail-img").style.display = "none";
+    $("detail-text-main").style.display = "block";
+    $("detail-text-main").textContent = e.mainText || "(本文なし)";
+  }
   $("detail-date").textContent = fmtDate(e.createdAt);
 
   // タイトル
@@ -874,8 +887,10 @@ async function deleteEntry() {
   if (!e) return;
   if (!confirm("このエントリーを削除しますか? (画像ファイルも削除されます)")) return;
   try {
-    // メイン画像を削除
-    await deleteFile(e.image, null, `Delete image: ${e.id}`);
+    // メイン画像を削除(存在する時のみ)
+    if (e.image) {
+      await deleteFile(e.image, null, `Delete image: ${e.id}`);
+    }
     // サブ画像も削除(失敗しても続行)
     for (const subPath of (e.subImages || [])) {
       try {
@@ -914,6 +929,7 @@ function openEdit() {
   loadImageInto($("edit-preview-img"), e.image);
   // 既存の値をフォームに読み込み
   $("edit-prompt").value = e.prompt || "";
+  $("edit-main-text").value = e.mainText || "";
   $("edit-title").value = e.title || "";
   $("edit-tab-id").value = e.tabId || "";
   // 配列の参照を維持しつつ内容だけ更新(setupTagPickerが起動時の参照を使い続けるため)
@@ -1084,6 +1100,7 @@ async function updateEntry() {
     const updated = {
       ...entries[idx],
       prompt,
+      mainText: $("edit-main-text").value.trim() || undefined,
       title: $("edit-title").value.trim() || undefined,
       tabId: $("edit-tab-id").value || undefined,
       tags: editTags.length ? editTags.slice() : undefined,
@@ -1131,6 +1148,7 @@ function resetAddForm() {
   $("material-file-input").value = "";
   $("material-preview-list").innerHTML = "";
   $("input-prompt").value = "";
+  $("input-main-text").value = "";
   $("input-title").value = "";
   inputTags.length = 0;
   renderTagPickerSelected("input-tags-selected", inputTags, "input-tags-popup", "input-tags-options");
@@ -1230,19 +1248,27 @@ function renderExistingSubImages(listId, pathArray, removeCallback) {
 
 async function saveEntry() {
   const prompt = $("input-prompt").value.trim();
-  if (!pendingImage) { alert("画像を選択してください"); return; }
+  const mainText = $("input-main-text").value.trim();
+  // メイン画像 or 文章のいずれか必須
+  if (!pendingImage && !mainText) {
+    alert("メイン画像か、画像不使用時の文章を入力してください");
+    return;
+  }
   if (!prompt) { alert("Promptは必須です"); return; }
 
   const btn = $("btn-save");
   btn.disabled = true;
-  $("save-status").textContent = "画像をアップロード中…";
+  $("save-status").textContent = pendingImage ? "画像をアップロード中…" : "保存中…";
   $("save-status").className = "save-status";
 
   try {
     const id = genId();
-    const ext = pendingImage.ext;
-    const imgPath = `${IMAGES_DIR}/${id}.${ext}`;
-    await uploadImage(imgPath, pendingImage.base64, `Add image: ${id}`);
+    let imgPath = undefined;
+    if (pendingImage) {
+      const ext = pendingImage.ext;
+      imgPath = `${IMAGES_DIR}/${id}.${ext}`;
+      await uploadImage(imgPath, pendingImage.base64, `Add image: ${id}`);
+    }
 
     // サブ画像をアップロード
     const subImagePaths = [];
@@ -1269,6 +1295,7 @@ async function saveEntry() {
     const entry = {
       id,
       image: imgPath,
+      mainText: mainText || undefined,
       subImages: subImagePaths.length ? subImagePaths : undefined,
       materialImages: materialImagePaths.length ? materialImagePaths : undefined,
       tabId: $("input-tab-id").value || undefined,
