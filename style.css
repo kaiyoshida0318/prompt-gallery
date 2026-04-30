@@ -459,8 +459,17 @@ main { padding: 32px 40px 80px; }
   font-size: 10px;
   color: var(--ink-mute);
   letter-spacing: 0.04em;
+  margin-top: 8px;
 }
 .card-model { text-transform: uppercase; }
+.card-category {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
 
 /* ========== MODAL ========== */
 .modal {
@@ -1143,6 +1152,16 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
   background: var(--bg-2);
   border-radius: 999px;
   color: var(--ink-soft);
+}
+.detail-category-name {
+  display: inline-block;
+  padding: 5px 14px;
+  font-family: var(--serif);
+  font-size: 13px;
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: 999px;
+  letter-spacing: 0.02em;
 }
 .note-text {
   color: var(--ink-soft);
