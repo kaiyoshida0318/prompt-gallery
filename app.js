@@ -15,6 +15,8 @@ let activeTabId = "_all"; // 選択中のタブID ("_all" は全て表示)
 let activeTag = null;   // タグフィルタ
 let currentDetailId = null;
 let editingTabId = null; // タブ編集モーダル用
+let inputTags = [];    // 追加モーダル用タグリスト
+let editTags = [];     // 編集モーダル用タグリスト
 let pendingImage = null; // { base64, mimeType, fileName }
 let pendingSubImages = []; // 追加モーダル用サブ画像(保存前)
 let editingSubImagesNew = []; // 編集モーダル:新規追加されたサブ画像
@@ -281,6 +283,7 @@ function render() {
       <div class="card-img"><img data-path="${escapeHtml(e.image)}" alt="" loading="lazy" /></div>
       <div class="card-body">
         ${e.title ? `<h3 class="card-title">${escapeHtml(e.title)}</h3>` : ''}
+        ${e.tags && e.tags.length ? `<div class="card-tags">${e.tags.map(t => `<span class="card-tag">${escapeHtml(t)}</span>`).join("")}</div>` : ''}
         <div class="card-prompt">${escapeHtml(e.prompt || "")}</div>
         <div class="card-meta">
           <span class="card-model">${escapeHtml(e.category || e.model || "—")}</span>
@@ -457,6 +460,82 @@ function refreshTabSelectOptions() {
   $("edit-tab-id").innerHTML = optionsHtml;
 }
 
+// ---------- タグ入力UI ----------
+function refreshTagSuggestions() {
+  // 全エントリーから既存タグを集めて、datalistに候補として入れる
+  const all = new Set();
+  entries.forEach((e) => (e.tags || []).forEach((t) => all.add(t)));
+  const sorted = [...all].sort();
+  const opts = sorted.map((t) => `<option value="${escapeHtml(t)}"></option>`).join("");
+  $("tag-suggestions").innerHTML = opts;
+  $("edit-tag-suggestions").innerHTML = opts;
+}
+
+function renderTagInputChips(wrapId, tagsArray) {
+  const wrap = $(wrapId);
+  const chipsContainer = wrap.querySelector(".tag-input-chips");
+  chipsContainer.innerHTML = tagsArray.map((tag, i) => `
+    <span class="tag-chip-input">
+      ${escapeHtml(tag)}
+      <span class="tag-chip-input-remove" data-index="${i}" title="削除">×</span>
+    </span>
+  `).join("");
+  chipsContainer.querySelectorAll(".tag-chip-input-remove").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const idx = parseInt(btn.dataset.index);
+      tagsArray.splice(idx, 1);
+      renderTagInputChips(wrapId, tagsArray);
+    });
+  });
+}
+
+function setupTagInputField(wrapId, tagsArray) {
+  const wrap = $(wrapId);
+  const field = wrap.querySelector(".tag-input-field");
+  // タグ確定処理
+  const commit = () => {
+    const val = field.value.trim().replace(/,$/, "").trim();
+    if (val && !tagsArray.includes(val)) {
+      tagsArray.push(val);
+      renderTagInputChips(wrapId, tagsArray);
+    }
+    field.value = "";
+  };
+  // 既存のリスナーを削除して再登録(重複防止)
+  field.replaceWith(field.cloneNode(true));
+  const newField = wrap.querySelector(".tag-input-field");
+  newField.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      const val = newField.value.trim().replace(/,$/, "").trim();
+      if (val && !tagsArray.includes(val)) {
+        tagsArray.push(val);
+        renderTagInputChips(wrapId, tagsArray);
+      }
+      newField.value = "";
+    } else if (e.key === "Backspace" && newField.value === "" && tagsArray.length > 0) {
+      tagsArray.pop();
+      renderTagInputChips(wrapId, tagsArray);
+    }
+  });
+  // フォーカスが外れた時もカンマで区切られた内容を確定
+  newField.addEventListener("blur", () => {
+    const val = newField.value.trim().replace(/,$/, "").trim();
+    if (val && !tagsArray.includes(val)) {
+      tagsArray.push(val);
+      renderTagInputChips(wrapId, tagsArray);
+    }
+    newField.value = "";
+  });
+  // ラッパークリックでフィールドにフォーカス
+  wrap.addEventListener("click", (e) => {
+    if (e.target === wrap || e.target.classList.contains("tag-input-chips")) {
+      newField.focus();
+    }
+  });
+}
+
 function renderTagFilters() {
   const allTags = new Set();
   entries.forEach((e) => (e.tags || []).forEach((t) => allTags.add(t)));
@@ -594,6 +673,7 @@ function openEdit() {
   const e = entries.find((x) => x.id === currentDetailId);
   if (!e) return;
   refreshTabSelectOptions();
+  refreshTagSuggestions();
   // プレビュー画像(詳細モーダルのimgを流用して即時表示)
   $("edit-preview-img").src = "";
   loadImageInto($("edit-preview-img"), e.image);
@@ -602,6 +682,8 @@ function openEdit() {
   $("edit-title").value = e.title || "";
   $("edit-category").value = e.category || "";
   $("edit-tab-id").value = e.tabId || "";
+  editTags = (e.tags || []).slice();
+  renderTagInputChips("edit-tags-wrap", editTags);
   $("edit-status").textContent = "";
   $("edit-status").className = "save-status";
 
@@ -706,6 +788,7 @@ async function updateEntry() {
       title: $("edit-title").value.trim() || undefined,
       category: $("edit-category").value.trim() || undefined,
       tabId: $("edit-tab-id").value || undefined,
+      tags: editTags.length ? editTags.slice() : undefined,
       subImages: finalSubImages.length ? finalSubImages : undefined,
       updatedAt: new Date().toISOString()
     };
@@ -745,6 +828,8 @@ function resetAddForm() {
   $("input-prompt").value = "";
   $("input-title").value = "";
   $("input-category").value = "";
+  inputTags = [];
+  renderTagInputChips("input-tags-wrap", inputTags);
   // 現在見ているタブをデフォルト所属に(「全て」のときは未設定)
   $("input-tab-id").value = activeTabId === "_all" ? "" : activeTabId;
   $("save-status").textContent = "";
@@ -873,6 +958,7 @@ async function saveEntry() {
       tabId: $("input-tab-id").value || undefined,
       title: $("input-title").value.trim() || undefined,
       category: $("input-category").value.trim() || undefined,
+      tags: inputTags.length ? inputTags.slice() : undefined,
       prompt,
       createdAt: new Date().toISOString()
     };
@@ -953,6 +1039,7 @@ function bindEvents() {
   // 追加ボタン
   $("btn-add").addEventListener("click", () => {
     refreshTabSelectOptions();
+    refreshTagSuggestions();
     resetAddForm();
     $("add-modal").style.display = "flex";
   });
@@ -1045,6 +1132,10 @@ function bindEvents() {
   // 編集
   $("btn-edit").addEventListener("click", openEdit);
   $("btn-update").addEventListener("click", updateEntry);
+
+  // タグ入力フィールド初期化
+  setupTagInputField("input-tags-wrap", inputTags);
+  setupTagInputField("edit-tags-wrap", editTags);
 
   // 画面外ドラッグ防止
   window.addEventListener("dragover", (e) => e.preventDefault());
