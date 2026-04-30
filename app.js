@@ -10,8 +10,11 @@ const IMAGES_DIR = "images";
 let auth = null;        // { owner, repo, branch, token }
 let dataSha = null;     // data.json の最新 SHA (更新時に必要)
 let entries = [];       // 全エントリー
+let tabs = [];          // タブ定義 [{id, name, icon}]
+let activeTabId = "_all"; // 選択中のタブID ("_all" は全て表示)
 let activeTag = null;   // タグフィルタ
 let currentDetailId = null;
+let editingTabId = null; // タブ編集モーダル用
 let pendingImage = null; // { base64, mimeType, fileName }
 let pendingSubImages = []; // 追加モーダル用サブ画像(保存前)
 let editingSubImagesNew = []; // 編集モーダル:新規追加されたサブ画像
@@ -53,6 +56,7 @@ async function loadData() {
   const res = await ghFetch(`contents/${DATA_PATH}?ref=${auth.branch}`);
   if (res.status === 404) {
     entries = [];
+    tabs = [];
     dataSha = null;
     return;
   }
@@ -61,9 +65,11 @@ async function loadData() {
   try {
     const json = JSON.parse(b64decode(data.content.replace(/\n/g, "")));
     entries = Array.isArray(json.entries) ? json.entries : [];
+    tabs = Array.isArray(json.tabs) ? json.tabs : [];
   } catch (e) {
     console.error("data.json 解析失敗", e);
     entries = [];
+    tabs = [];
   }
 }
 
@@ -75,7 +81,7 @@ async function saveData(commitMessage, mergeFn) {
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const body = {
       message: commitMessage,
-      content: b64encode(JSON.stringify({ entries }, null, 2)),
+      content: b64encode(JSON.stringify({ entries, tabs }, null, 2)),
       branch: auth.branch
     };
     if (dataSha) body.sha = dataSha;
@@ -100,6 +106,7 @@ async function saveData(commitMessage, mergeFn) {
       console.warn(`競合検出 (attempt ${attempt + 1}/${MAX_RETRIES}) - 最新のdata.jsonを取得してリトライ`);
       // 自分の変更を一時保存
       const myEntries = entries.slice();
+      const myTabs = tabs.slice();
       // 最新を取得
       await loadData();
       // マージ:mergeFnがあれば呼ぶ。なければ自分の変更を最新にマージ
@@ -113,6 +120,11 @@ async function saveData(commitMessage, mergeFn) {
         merged.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
         entries = merged;
       }
+      // tabsもマージ:自分が持ってる変更を優先
+      const myTabMap = new Map(myTabs.map((t) => [t.id, t]));
+      const mergedTabs = tabs.filter((t) => !myTabMap.has(t.id));
+      mergedTabs.push(...myTabs);
+      tabs = mergedTabs;
       continue;
     }
 
@@ -235,6 +247,8 @@ async function verifyAuth(a) {
 function render() {
   const q = $("search-input").value.trim().toLowerCase();
   const filtered = entries.filter((e) => {
+    // タブ絞り込み:"_all"は全件表示、それ以外はtabIdが一致するもの
+    if (activeTabId !== "_all" && e.tabId !== activeTabId) return false;
     if (activeTag && !(e.tags || []).includes(activeTag)) return false;
     if (!q) return true;
     const hay = [e.prompt, e.negative, e.note, e.model, e.category, ...(e.tags || [])].filter(Boolean).join(" ").toLowerCase();
@@ -243,9 +257,18 @@ function render() {
 
   $("stat-count").textContent = entries.length;
 
+  // タブバーを再描画(各タブの件数も計算するため)
+  renderTabBar();
+
   const gallery = $("gallery");
   $("loading").style.display = "none";
   if (entries.length === 0) {
+    $("empty-state").style.display = "block";
+    gallery.innerHTML = "";
+    renderTagFilters();
+    return;
+  }
+  if (filtered.length === 0) {
     $("empty-state").style.display = "block";
     gallery.innerHTML = "";
     renderTagFilters();
@@ -275,6 +298,161 @@ function render() {
     el.addEventListener("click", () => openDetail(el.dataset.id));
   });
   renderTagFilters();
+}
+
+// ---------- タブバーの描画 ----------
+function renderTabBar() {
+  const tabList = $("tab-list");
+  // 各タブに属するエントリー数をカウント
+  const counts = { _all: entries.length };
+  for (const e of entries) {
+    if (e.tabId) counts[e.tabId] = (counts[e.tabId] || 0) + 1;
+  }
+  // 「全て」+ 各タブ
+  const allBtn = `
+    <div class="tab-item ${activeTabId === '_all' ? 'active' : ''}" data-tab-id="_all">
+      <span class="tab-item-icon">📚</span>
+      <span class="tab-item-name">全て</span>
+      <span class="tab-item-count">${counts._all || 0}</span>
+    </div>
+  `;
+  const tabsHtml = tabs.map((t, i) => {
+    const isActive = activeTabId === t.id;
+    return `
+    <div class="tab-item ${isActive ? 'active' : ''}" data-tab-id="${escapeHtml(t.id)}">
+      <span class="tab-item-icon">${escapeHtml(t.icon || '🏷️')}</span>
+      <span class="tab-item-name">${escapeHtml(t.name)}</span>
+      <span class="tab-item-count">${counts[t.id] || 0}</span>
+      <span class="tab-item-actions">
+        ${i > 0 ? `<button class="tab-mini-btn" data-action="left" data-tab-id="${escapeHtml(t.id)}" title="左へ">◀</button>` : ''}
+        ${i < tabs.length - 1 ? `<button class="tab-mini-btn" data-action="right" data-tab-id="${escapeHtml(t.id)}" title="右へ">▶</button>` : ''}
+        <button class="tab-mini-btn" data-action="edit" data-tab-id="${escapeHtml(t.id)}" title="編集">✎</button>
+      </span>
+    </div>
+  `;
+  }).join("");
+  tabList.innerHTML = allBtn + tabsHtml;
+
+  // タブクリックで切り替え
+  tabList.querySelectorAll(".tab-item").forEach((el) => {
+    el.addEventListener("click", (e) => {
+      // ミニボタンのクリックは別処理
+      if (e.target.closest(".tab-mini-btn")) return;
+      activeTabId = el.dataset.tabId;
+      render();
+    });
+  });
+  // ミニボタン
+  tabList.querySelectorAll(".tab-mini-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      const tabId = btn.dataset.tabId;
+      if (action === "left") moveTab(tabId, -1);
+      else if (action === "right") moveTab(tabId, 1);
+      else if (action === "edit") openTabEdit(tabId);
+    });
+  });
+}
+
+// ---------- タブ操作 ----------
+function moveTab(tabId, delta) {
+  const idx = tabs.findIndex((t) => t.id === tabId);
+  if (idx === -1) return;
+  const newIdx = idx + delta;
+  if (newIdx < 0 || newIdx >= tabs.length) return;
+  const [item] = tabs.splice(idx, 1);
+  tabs.splice(newIdx, 0, item);
+  saveData(`Reorder tab: ${item.name}`).then(render).catch((err) => alert("並び替え失敗: " + err.message));
+}
+
+function openNewTab() {
+  editingTabId = null;
+  $("tab-edit-title").textContent = "新しいタブを追加";
+  $("tab-edit-icon").value = "📦";
+  $("tab-edit-name").value = "";
+  $("btn-tab-delete").style.display = "none";
+  closeAllModals();
+  $("tab-edit-modal").style.display = "flex";
+  setTimeout(() => $("tab-edit-name").focus(), 50);
+}
+
+function openTabEdit(tabId) {
+  const t = tabs.find((x) => x.id === tabId);
+  if (!t) return;
+  editingTabId = tabId;
+  $("tab-edit-title").textContent = "タブを編集";
+  $("tab-edit-icon").value = t.icon || "🏷️";
+  $("tab-edit-name").value = t.name || "";
+  $("btn-tab-delete").style.display = "inline-block";
+  closeAllModals();
+  $("tab-edit-modal").style.display = "flex";
+  setTimeout(() => $("tab-edit-name").focus(), 50);
+}
+
+async function saveTab() {
+  const name = $("tab-edit-name").value.trim();
+  const icon = $("tab-edit-icon").value.trim() || "🏷️";
+  if (!name) {
+    alert("タブ名を入力してください");
+    return;
+  }
+
+  const btn = $("btn-tab-save");
+  btn.disabled = true;
+
+  try {
+    if (editingTabId) {
+      // 編集
+      const t = tabs.find((x) => x.id === editingTabId);
+      if (!t) throw new Error("対象タブが見つかりません");
+      t.name = name;
+      t.icon = icon;
+      await saveData(`Update tab: ${name}`);
+    } else {
+      // 新規
+      const newTab = { id: "tab-" + genId(), name, icon };
+      tabs.push(newTab);
+      await saveData(`Add tab: ${name}`);
+      activeTabId = newTab.id;
+    }
+    $("tab-edit-modal").style.display = "none";
+    render();
+  } catch (err) {
+    alert("保存失敗: " + err.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deleteTab() {
+  if (!editingTabId) return;
+  const t = tabs.find((x) => x.id === editingTabId);
+  if (!t) return;
+  if (!confirm(`タブ「${t.name}」を削除しますか?\n(中の画像は削除されません。「全て」タブで見られます)`)) return;
+
+  try {
+    // タブ自体を削除
+    tabs = tabs.filter((x) => x.id !== editingTabId);
+    // このタブに属していたエントリーは tabId を未設定に
+    entries.forEach((e) => {
+      if (e.tabId === editingTabId) delete e.tabId;
+    });
+    await saveData(`Delete tab: ${t.name}`);
+    if (activeTabId === editingTabId) activeTabId = "_all";
+    $("tab-edit-modal").style.display = "none";
+    render();
+  } catch (err) {
+    alert("削除失敗: " + err.message);
+  }
+}
+
+// 追加・編集モーダルのタブ選択を最新のtabsで埋める
+function refreshTabSelectOptions() {
+  const optionsHtml = '<option value="">— 未設定(全てに表示)—</option>' +
+    tabs.map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.icon || '🏷️')} ${escapeHtml(t.name)}</option>`).join("");
+  $("input-tab-id").innerHTML = optionsHtml;
+  $("edit-tab-id").innerHTML = optionsHtml;
 }
 
 function renderTagFilters() {
@@ -315,7 +493,7 @@ function handleEditSubFiles(files) {
 
 // ---------- 詳細モーダル ----------
 function closeAllModals() {
-  ["add-modal", "edit-modal", "detail-modal"].forEach((id) => {
+  ["add-modal", "edit-modal", "detail-modal", "tab-edit-modal"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
@@ -407,12 +585,14 @@ async function deleteEntry() {
 function openEdit() {
   const e = entries.find((x) => x.id === currentDetailId);
   if (!e) return;
+  refreshTabSelectOptions();
   // プレビュー画像(詳細モーダルのimgを流用して即時表示)
   $("edit-preview-img").src = "";
   loadImageInto($("edit-preview-img"), e.image);
   // 既存の値をフォームに読み込み
   $("edit-prompt").value = e.prompt || "";
   $("edit-category").value = e.category || "";
+  $("edit-tab-id").value = e.tabId || "";
   $("edit-status").textContent = "";
   $("edit-status").className = "save-status";
 
@@ -515,6 +695,7 @@ async function updateEntry() {
       ...entries[idx],
       prompt,
       category: $("edit-category").value.trim() || undefined,
+      tabId: $("edit-tab-id").value || undefined,
       subImages: finalSubImages.length ? finalSubImages : undefined,
       updatedAt: new Date().toISOString()
     };
@@ -553,6 +734,8 @@ function resetAddForm() {
   $("sub-preview-list").innerHTML = "";
   $("input-prompt").value = "";
   $("input-category").value = "";
+  // 現在見ているタブをデフォルト所属に(「全て」のときは未設定)
+  $("input-tab-id").value = activeTabId === "_all" ? "" : activeTabId;
   $("save-status").textContent = "";
   $("save-status").className = "save-status";
 }
@@ -676,6 +859,7 @@ async function saveEntry() {
       id,
       image: imgPath,
       subImages: subImagePaths.length ? subImagePaths : undefined,
+      tabId: $("input-tab-id").value || undefined,
       category: $("input-category").value.trim() || undefined,
       prompt,
       createdAt: new Date().toISOString()
@@ -756,8 +940,26 @@ function bindEvents() {
 
   // 追加ボタン
   $("btn-add").addEventListener("click", () => {
+    refreshTabSelectOptions();
     resetAddForm();
     $("add-modal").style.display = "flex";
+  });
+
+  // タブ追加ボタン
+  $("btn-add-tab").addEventListener("click", openNewTab);
+
+  // タブ編集モーダル:アイコン候補のクリック
+  document.querySelectorAll(".icon-chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      $("tab-edit-icon").value = chip.dataset.icon;
+    });
+  });
+  // タブ保存
+  $("btn-tab-save").addEventListener("click", saveTab);
+  $("btn-tab-delete").addEventListener("click", deleteTab);
+  // Enter で保存
+  $("tab-edit-name").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); saveTab(); }
   });
 
   // モーダル閉じる(×ボタン or キャンセルボタンのみ。背景クリックでは閉じない)
