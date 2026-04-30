@@ -798,19 +798,6 @@ function openDetail(id) {
     $("detail-title").textContent = e.title;
   } else $("detail-title").style.display = "none";
 
-  // カテゴリ(タブ名)
-  const tabName = getTabNameById(e.tabId);
-  if (tabName) {
-    $("detail-category").style.display = "inline-block";
-    $("detail-category").textContent = tabName;
-  } else $("detail-category").style.display = "none";
-
-  // モデル(旧データ互換)
-  if (e.model) {
-    $("detail-model").style.display = "inline-block";
-    $("detail-model").textContent = e.model;
-  } else $("detail-model").style.display = "none";
-
   // サブ画像(新)
   if (e.subImages && e.subImages.length) {
     $("sub-images-section").style.display = "block";
@@ -839,9 +826,8 @@ function openDetail(id) {
     });
   } else $("material-images-section").style.display = "none";
 
-  // プロンプトは折りたたみで初期は閉じた状態
+  // プロンプトはコピー用に保持(画面には表示しない)
   $("detail-prompt").textContent = e.prompt || "";
-  $("prompt-details").open = false;
 
   if (e.negative) {
     $("negative-section").style.display = "block";
@@ -908,7 +894,9 @@ function openEdit() {
   $("edit-prompt").value = e.prompt || "";
   $("edit-title").value = e.title || "";
   $("edit-tab-id").value = e.tabId || "";
-  editTags = (e.tags || []).slice();
+  // 配列の参照を維持しつつ内容だけ更新(setupTagPickerが起動時の参照を使い続けるため)
+  editTags.length = 0;
+  (e.tags || []).forEach((t) => editTags.push(t));
   renderTagPickerSelected("edit-tags-selected", editTags, "edit-tags-popup", "edit-tags-options");
   $("edit-tags-popup").style.display = "none";
   $("edit-status").textContent = "";
@@ -1122,7 +1110,7 @@ function resetAddForm() {
   $("material-preview-list").innerHTML = "";
   $("input-prompt").value = "";
   $("input-title").value = "";
-  inputTags = [];
+  inputTags.length = 0;
   renderTagPickerSelected("input-tags-selected", inputTags, "input-tags-popup", "input-tags-options");
   $("input-tags-popup").style.display = "none";
   // 現在見ているタブをデフォルト所属に(「全て」のときは未設定)
@@ -1464,7 +1452,6 @@ function bindEvents() {
   $("search-input").addEventListener("input", render);
 
   // コピー
-  $("copy-prompt").addEventListener("click", (e) => copyText($("detail-prompt").textContent, e.target));
   $("copy-negative").addEventListener("click", (e) => copyText($("detail-negative").textContent, e.target));
 
   // 削除
