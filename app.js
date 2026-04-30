@@ -11,6 +11,7 @@ let auth = null;        // { owner, repo, branch, token }
 let dataSha = null;     // data.json の最新 SHA (更新時に必要)
 let entries = [];       // 全エントリー
 let tabs = [];          // タブ定義 [{id, name, icon}]
+let tagDefs = [];       // タグ定義 [{id, name}]
 let activeTabId = "_all"; // 選択中のタブID ("_all" は全て表示)
 let activeTag = null;   // タグフィルタ
 let currentDetailId = null;
@@ -63,6 +64,7 @@ async function loadData() {
   if (res.status === 404) {
     entries = [];
     tabs = [];
+    tagDefs = [];
     dataSha = null;
     return;
   }
@@ -72,10 +74,27 @@ async function loadData() {
     const json = JSON.parse(b64decode(data.content.replace(/\n/g, "")));
     entries = Array.isArray(json.entries) ? json.entries : [];
     tabs = Array.isArray(json.tabs) ? json.tabs : [];
+    tagDefs = Array.isArray(json.tagDefs) ? json.tagDefs : [];
+
+    // 既存entriesに使われているタグ名で、tagDefsに存在しないものを自動追加
+    const definedNames = new Set(tagDefs.map((t) => t.name));
+    const usedNames = new Set();
+    entries.forEach((e) => (e.tags || []).forEach((n) => usedNames.add(n)));
+    let added = false;
+    for (const name of usedNames) {
+      if (!definedNames.has(name)) {
+        tagDefs.push({ id: "tag-" + genId(), name });
+        added = true;
+      }
+    }
+    if (added) {
+      console.log(`既存タグから ${tagDefs.length - definedNames.size} 件を自動でタグ定義に追加しました`);
+    }
   } catch (e) {
     console.error("data.json 解析失敗", e);
     entries = [];
     tabs = [];
+    tagDefs = [];
   }
 }
 
@@ -87,7 +106,7 @@ async function saveData(commitMessage, mergeFn) {
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const body = {
       message: commitMessage,
-      content: b64encode(JSON.stringify({ entries, tabs }, null, 2)),
+      content: b64encode(JSON.stringify({ entries, tabs, tagDefs }, null, 2)),
       branch: auth.branch
     };
     if (dataSha) body.sha = dataSha;
@@ -113,6 +132,7 @@ async function saveData(commitMessage, mergeFn) {
       // 自分の変更を一時保存
       const myEntries = entries.slice();
       const myTabs = tabs.slice();
+      const myTagDefs = tagDefs.slice();
       // 最新を取得
       await loadData();
       // マージ:mergeFnがあれば呼ぶ。なければ自分の変更を最新にマージ
@@ -131,6 +151,8 @@ async function saveData(commitMessage, mergeFn) {
       const mergedTabs = tabs.filter((t) => !myTabMap.has(t.id));
       mergedTabs.push(...myTabs);
       tabs = mergedTabs;
+      // tagDefsもマージ:自分の変更を優先(削除も尊重)
+      tagDefs = myTagDefs;
       continue;
     }
 
@@ -463,80 +485,231 @@ function refreshTabSelectOptions() {
   $("edit-tab-id").innerHTML = optionsHtml;
 }
 
-// ---------- タグ入力UI ----------
-function refreshTagSuggestions() {
-  // 全エントリーから既存タグを集めて、datalistに候補として入れる
-  const all = new Set();
-  entries.forEach((e) => (e.tags || []).forEach((t) => all.add(t)));
-  const sorted = [...all].sort();
-  const opts = sorted.map((t) => `<option value="${escapeHtml(t)}"></option>`).join("");
-  $("tag-suggestions").innerHTML = opts;
-  $("edit-tag-suggestions").innerHTML = opts;
-}
-
-function renderTagInputChips(wrapId, tagsArray) {
-  const wrap = $(wrapId);
-  const chipsContainer = wrap.querySelector(".tag-input-chips");
-  chipsContainer.innerHTML = tagsArray.map((tag, i) => `
+// ---------- タグピッカー ----------
+// 選択済みタグの表示
+function renderTagPickerSelected(selectedId, tagsArray, popupId, optionsId) {
+  const sel = $(selectedId);
+  sel.innerHTML = tagsArray.map((tag, i) => `
     <span class="tag-chip-input">
       ${escapeHtml(tag)}
       <span class="tag-chip-input-remove" data-index="${i}" title="削除">×</span>
     </span>
   `).join("");
-  chipsContainer.querySelectorAll(".tag-chip-input-remove").forEach((btn) => {
+  sel.querySelectorAll(".tag-chip-input-remove").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const idx = parseInt(btn.dataset.index);
       tagsArray.splice(idx, 1);
-      renderTagInputChips(wrapId, tagsArray);
+      renderTagPickerSelected(selectedId, tagsArray, popupId, optionsId);
+      // ポップアップが開いてたら選択状態も更新
+      if ($(popupId).style.display !== "none") {
+        renderTagPickerOptions(optionsId, tagsArray, popupId, selectedId);
+      }
     });
   });
 }
 
-function setupTagInputField(wrapId, tagsArray) {
-  const wrap = $(wrapId);
-  const field = wrap.querySelector(".tag-input-field");
-  // タグ確定処理
-  const commit = () => {
-    const val = field.value.trim().replace(/,$/, "").trim();
-    if (val && !tagsArray.includes(val)) {
-      tagsArray.push(val);
-      renderTagInputChips(wrapId, tagsArray);
-    }
-    field.value = "";
-  };
-  // 既存のリスナーを削除して再登録(重複防止)
-  field.replaceWith(field.cloneNode(true));
-  const newField = wrap.querySelector(".tag-input-field");
-  newField.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      const val = newField.value.trim().replace(/,$/, "").trim();
-      if (val && !tagsArray.includes(val)) {
-        tagsArray.push(val);
-        renderTagInputChips(wrapId, tagsArray);
+// ポップアップ内の候補表示
+function renderTagPickerOptions(optionsId, tagsArray, popupId, selectedId) {
+  const opts = $(optionsId);
+  if (tagDefs.length === 0) {
+    opts.innerHTML = '<p class="tag-picker-empty">登録されたタグがありません。右上の 🏷️ から追加してください。</p>';
+    return;
+  }
+  // 名前順
+  const sorted = tagDefs.slice().sort((a, b) => a.name.localeCompare(b.name, "ja"));
+  opts.innerHTML = sorted.map((td) => {
+    const selected = tagsArray.includes(td.name);
+    return `<span class="tag-picker-option ${selected ? 'selected' : ''}" data-name="${escapeHtml(td.name)}">${escapeHtml(td.name)}</span>`;
+  }).join("");
+  opts.querySelectorAll(".tag-picker-option").forEach((el) => {
+    el.addEventListener("click", () => {
+      const name = el.dataset.name;
+      const idx = tagsArray.indexOf(name);
+      if (idx === -1) {
+        tagsArray.push(name);
+      } else {
+        tagsArray.splice(idx, 1);
       }
-      newField.value = "";
-    } else if (e.key === "Backspace" && newField.value === "" && tagsArray.length > 0) {
-      tagsArray.pop();
-      renderTagInputChips(wrapId, tagsArray);
+      renderTagPickerOptions(optionsId, tagsArray, popupId, selectedId);
+      renderTagPickerSelected(selectedId, tagsArray, popupId, optionsId);
+    });
+  });
+}
+
+// ピッカーUIの初期化(イベントハンドラ登録)
+function setupTagPicker(prefix, tagsArray) {
+  // prefix は "input" or "edit"
+  const toggleBtn = $(`${prefix}-tags-toggle`);
+  const popup = $(`${prefix}-tags-popup`);
+  const selectedId = `${prefix}-tags-selected`;
+  const optionsId = `${prefix}-tags-options`;
+
+  // 既存リスナーをクリアするため、ボタン要素を置き換え
+  const newToggle = toggleBtn.cloneNode(true);
+  toggleBtn.parentNode.replaceChild(newToggle, toggleBtn);
+  newToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = popup.style.display !== "none";
+    if (isOpen) {
+      popup.style.display = "none";
+    } else {
+      renderTagPickerOptions(optionsId, tagsArray, `${prefix}-tags-popup`, selectedId);
+      popup.style.display = "block";
     }
   });
-  // フォーカスが外れた時もカンマで区切られた内容を確定
-  newField.addEventListener("blur", () => {
-    const val = newField.value.trim().replace(/,$/, "").trim();
-    if (val && !tagsArray.includes(val)) {
-      tagsArray.push(val);
-      renderTagInputChips(wrapId, tagsArray);
-    }
-    newField.value = "";
-  });
-  // ラッパークリックでフィールドにフォーカス
-  wrap.addEventListener("click", (e) => {
-    if (e.target === wrap || e.target.classList.contains("tag-input-chips")) {
-      newField.focus();
+  // 外側クリックで閉じる
+  document.addEventListener("click", (e) => {
+    if (popup.style.display !== "none") {
+      const wrap = $(`${prefix}-tags-wrap`);
+      if (!wrap.contains(e.target)) popup.style.display = "none";
     }
   });
+}
+
+// ---------- タグ管理 ----------
+function openTagManager() {
+  closeAllModals();
+  $("tag-mgr-new-name").value = "";
+  renderTagManager();
+  $("tag-mgr-modal").style.display = "flex";
+  setTimeout(() => $("tag-mgr-new-name").focus(), 50);
+}
+
+function renderTagManager() {
+  const list = $("tag-mgr-list");
+  if (tagDefs.length === 0) {
+    list.innerHTML = '<div class="tag-mgr-empty">タグがまだありません。上から追加してください。</div>';
+    return;
+  }
+  // 各タグの使用件数を集計
+  const usageCount = {};
+  entries.forEach((e) => {
+    (e.tags || []).forEach((n) => {
+      usageCount[n] = (usageCount[n] || 0) + 1;
+    });
+  });
+
+  const sorted = tagDefs.slice().sort((a, b) => a.name.localeCompare(b.name, "ja"));
+  list.innerHTML = sorted.map((td) => `
+    <div class="tag-mgr-item" data-id="${escapeHtml(td.id)}">
+      <span class="tag-mgr-item-name">${escapeHtml(td.name)}</span>
+      <span class="tag-mgr-item-count">${usageCount[td.name] || 0} 件</span>
+      <button class="tag-mgr-btn" data-action="rename" data-id="${escapeHtml(td.id)}">名前変更</button>
+      <button class="tag-mgr-btn danger" data-action="delete" data-id="${escapeHtml(td.id)}">削除</button>
+    </div>
+  `).join("");
+
+  list.querySelectorAll(".tag-mgr-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      if (action === "rename") startRenameTag(id);
+      else if (action === "delete") deleteTagDef(id);
+    });
+  });
+}
+
+function startRenameTag(tagId) {
+  const td = tagDefs.find((x) => x.id === tagId);
+  if (!td) return;
+  const item = document.querySelector(`.tag-mgr-item[data-id="${CSS.escape(tagId)}"]`);
+  if (!item) return;
+  const oldName = td.name;
+  item.innerHTML = `
+    <input class="tag-mgr-edit-input" type="text" value="${escapeHtml(oldName)}" />
+    <button class="tag-mgr-btn" data-action="confirm">OK</button>
+    <button class="tag-mgr-btn" data-action="cancel">キャンセル</button>
+  `;
+  const input = item.querySelector(".tag-mgr-edit-input");
+  input.focus();
+  input.select();
+  const confirm = async () => {
+    const newName = input.value.trim();
+    if (!newName) {
+      alert("名前を入力してください");
+      return;
+    }
+    if (newName === oldName) {
+      renderTagManager();
+      return;
+    }
+    if (tagDefs.some((x) => x.id !== tagId && x.name === newName)) {
+      alert("同じ名前のタグが既にあります");
+      return;
+    }
+    try {
+      // タグ定義を更新
+      td.name = newName;
+      // 全entriesのtags内の旧名前を新名前に置換
+      entries.forEach((e) => {
+        if (e.tags) {
+          e.tags = e.tags.map((n) => n === oldName ? newName : n);
+        }
+      });
+      await saveData(`Rename tag: ${oldName} -> ${newName}`);
+      renderTagManager();
+      render();
+    } catch (err) {
+      alert("変更失敗: " + err.message);
+      td.name = oldName; // ロールバック
+      renderTagManager();
+    }
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); confirm(); }
+    else if (e.key === "Escape") { e.preventDefault(); renderTagManager(); }
+  });
+  item.querySelector('[data-action="confirm"]').addEventListener("click", confirm);
+  item.querySelector('[data-action="cancel"]').addEventListener("click", renderTagManager);
+}
+
+async function deleteTagDef(tagId) {
+  const td = tagDefs.find((x) => x.id === tagId);
+  if (!td) return;
+  // 使用件数チェック
+  let count = 0;
+  entries.forEach((e) => { if ((e.tags || []).includes(td.name)) count++; });
+  const msg = count > 0
+    ? `タグ「${td.name}」を削除しますか?\n${count}件の画像から自動的にタグが外されます。`
+    : `タグ「${td.name}」を削除しますか?`;
+  if (!confirm(msg)) return;
+
+  try {
+    tagDefs = tagDefs.filter((x) => x.id !== tagId);
+    // 全entriesから該当タグを削除
+    entries.forEach((e) => {
+      if (e.tags) {
+        e.tags = e.tags.filter((n) => n !== td.name);
+        if (e.tags.length === 0) delete e.tags;
+      }
+    });
+    await saveData(`Delete tag: ${td.name}`);
+    renderTagManager();
+    render();
+  } catch (err) {
+    alert("削除失敗: " + err.message);
+  }
+}
+
+async function addTagDef() {
+  const name = $("tag-mgr-new-name").value.trim();
+  if (!name) {
+    alert("タグ名を入力してください");
+    return;
+  }
+  if (tagDefs.some((x) => x.name === name)) {
+    alert("同じ名前のタグが既にあります");
+    return;
+  }
+  try {
+    tagDefs.push({ id: "tag-" + genId(), name });
+    await saveData(`Add tag: ${name}`);
+    $("tag-mgr-new-name").value = "";
+    renderTagManager();
+  } catch (err) {
+    alert("追加失敗: " + err.message);
+  }
 }
 
 function renderTagFilters() {
@@ -597,7 +770,7 @@ function handleEditMaterialFiles(files) {
 
 // ---------- 詳細モーダル ----------
 function closeAllModals() {
-  ["add-modal", "edit-modal", "detail-modal", "tab-edit-modal"].forEach((id) => {
+  ["add-modal", "edit-modal", "detail-modal", "tab-edit-modal", "tag-mgr-modal"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
@@ -720,7 +893,6 @@ function openEdit() {
   const e = entries.find((x) => x.id === currentDetailId);
   if (!e) return;
   refreshTabSelectOptions();
-  refreshTagSuggestions();
   // プレビュー画像(詳細モーダルのimgを流用して即時表示)
   $("edit-preview-img").src = "";
   loadImageInto($("edit-preview-img"), e.image);
@@ -730,7 +902,8 @@ function openEdit() {
   $("edit-category").value = e.category || "";
   $("edit-tab-id").value = e.tabId || "";
   editTags = (e.tags || []).slice();
-  renderTagInputChips("edit-tags-wrap", editTags);
+  renderTagPickerSelected("edit-tags-selected", editTags, "edit-tags-popup", "edit-tags-options");
+  $("edit-tags-popup").style.display = "none";
   $("edit-status").textContent = "";
   $("edit-status").className = "save-status";
 
@@ -945,7 +1118,8 @@ function resetAddForm() {
   $("input-title").value = "";
   $("input-category").value = "";
   inputTags = [];
-  renderTagInputChips("input-tags-wrap", inputTags);
+  renderTagPickerSelected("input-tags-selected", inputTags, "input-tags-popup", "input-tags-options");
+  $("input-tags-popup").style.display = "none";
   // 現在見ているタブをデフォルト所属に(「全て」のときは未設定)
   $("input-tab-id").value = activeTabId === "_all" ? "" : activeTabId;
   $("save-status").textContent = "";
@@ -1166,8 +1340,7 @@ function bindEvents() {
   // 追加ボタン
   $("btn-add").addEventListener("click", () => {
     refreshTabSelectOptions();
-    refreshTagSuggestions();
-    resetAddForm();
+      resetAddForm();
     $("add-modal").style.display = "flex";
   });
 
@@ -1186,6 +1359,13 @@ function bindEvents() {
   // Enter で保存
   $("tab-edit-name").addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); saveTab(); }
+  });
+
+  // タグ管理
+  $("btn-tag-mgr").addEventListener("click", openTagManager);
+  $("tag-mgr-add").addEventListener("click", addTagDef);
+  $("tag-mgr-new-name").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addTagDef(); }
   });
 
   // モーダル閉じる(×ボタン or キャンセルボタンのみ。背景クリックでは閉じない)
@@ -1291,8 +1471,8 @@ function bindEvents() {
   $("btn-update").addEventListener("click", updateEntry);
 
   // タグ入力フィールド初期化
-  setupTagInputField("input-tags-wrap", inputTags);
-  setupTagInputField("edit-tags-wrap", editTags);
+  setupTagPicker("input", inputTags);
+  setupTagPicker("edit", editTags);
 
   // 画面外ドラッグ防止
   window.addEventListener("dragover", (e) => e.preventDefault());
