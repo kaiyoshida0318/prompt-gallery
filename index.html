@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.8.0" />
+<link rel="stylesheet" href="style.css?v=1.9.0" />
 </head>
 <body>
 
@@ -41,7 +41,7 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.8.0</span>
+    <span class="version-badge">v1.9.0</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
@@ -105,6 +105,13 @@
 
         <label class="field-label">タイトル</label>
         <input id="input-title" type="text" placeholder="例: パッケージ案A、サムネ案・横向き(任意)" />
+
+        <label class="field-label">タグ</label>
+        <div id="input-tags-wrap" class="tag-input-wrap">
+          <div class="tag-input-chips"></div>
+          <input type="text" class="tag-input-field" placeholder="素材属性タグを入力(Enter/,で追加)" list="tag-suggestions" />
+        </div>
+        <datalist id="tag-suggestions"></datalist>
 
         <label class="field-label">プロンプト <span class="required">*</span></label>
         <textarea id="input-prompt" rows="10" placeholder="生成に使用したプロンプトを貼り付け"></textarea>
@@ -215,6 +222,13 @@
         <label class="field-label">タイトル</label>
         <input id="edit-title" type="text" placeholder="例: パッケージ案A、サムネ案・横向き(任意)" />
 
+        <label class="field-label">タグ</label>
+        <div id="edit-tags-wrap" class="tag-input-wrap">
+          <div class="tag-input-chips"></div>
+          <input type="text" class="tag-input-field" placeholder="素材属性タグを入力(Enter/,で追加)" list="edit-tag-suggestions" />
+        </div>
+        <datalist id="edit-tag-suggestions"></datalist>
+
         <label class="field-label">プロンプト <span class="required">*</span></label>
         <textarea id="edit-prompt" rows="10" placeholder="生成に使用したプロンプト"></textarea>
       </div>
@@ -280,6 +294,6 @@
   </div>
 </div>
 
-<script src="app.js?v=1.8.0"></script>
+<script src="app.js?v=1.9.0"></script>
 </body>
 </html>
