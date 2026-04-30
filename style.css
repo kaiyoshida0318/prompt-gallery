@@ -402,6 +402,18 @@ main { padding: 32px 40px 80px; }
 }
 .card:hover .card-img img { transform: scale(1.04); }
 .card-body { padding: 12px 14px 14px; }
+.card-title {
+  font-family: var(--serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.35;
+  margin: 0 0 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
 .card-prompt {
   font-size: 12.5px;
   color: var(--ink-soft);
@@ -757,6 +769,15 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
   display: block;
 }
 .detail-info { display: flex; flex-direction: column; overflow: hidden; }
+.detail-title {
+  font-family: var(--serif);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.3;
+  margin: 0 0 12px;
+  letter-spacing: -0.01em;
+}
 .detail-meta {
   display: flex;
   justify-content: space-between;
