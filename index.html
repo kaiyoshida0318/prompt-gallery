@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.13.5" />
+<link rel="stylesheet" href="style.css?v=1.14.0" />
 </head>
 <body>
 
@@ -41,7 +41,7 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.13.8</span>
+    <span class="version-badge">v1.14.0</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
@@ -95,6 +95,10 @@
           <img id="preview-img" alt="preview" />
           <button id="preview-clear">別の画像を選ぶ</button>
         </div>
+
+        <label class="field-label">または、メイン画像不使用時の文章</label>
+        <textarea id="input-main-text" rows="4" placeholder="画像の代わりにカードに表示する文章(画像をアップしない場合のみ使用)"></textarea>
+        <p class="field-hint" style="margin-top:4px">※ メイン画像か文章のいずれかを入れてください。両方入れた場合は画像が優先されます。</p>
 
         <label class="field-label">サブ画像(複数OK)</label>
         <div id="sub-dropzone" class="dropzone sub-dropzone">
@@ -152,6 +156,7 @@
     <div class="detail-grid">
       <div class="detail-img-wrap">
         <img id="detail-img" alt="" />
+        <div id="detail-text-main" class="detail-text-main" style="display:none"></div>
       </div>
       <div class="detail-info">
         <h3 id="detail-title" class="detail-title" style="display:none"></h3>
@@ -217,6 +222,10 @@
           <img id="edit-preview-img" alt="" />
           <p class="edit-preview-note">※ 画像の変更はできません。変更したい場合は削除して新規登録してください。</p>
         </div>
+
+        <label class="field-label">メイン画像不使用時の文章</label>
+        <textarea id="edit-main-text" rows="4" placeholder="画像の代わりにカードに表示する文章(画像なしエントリーで使用)"></textarea>
+        <p class="field-hint" style="margin-top:4px">※ メイン画像があるエントリーでは表示されません。</p>
 
         <label class="field-label">サブ画像(複数OK)</label>
         <div id="edit-sub-dropzone" class="dropzone sub-dropzone">
@@ -324,6 +333,6 @@
   </div>
 </div>
 
-<script src="app.js?v=1.13.8"></script>
+<script src="app.js?v=1.14.0"></script>
 </body>
 </html>
