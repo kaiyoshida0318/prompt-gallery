@@ -41,7 +41,7 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.13.5</span>
+    <span class="version-badge">v1.13.7</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
@@ -111,9 +111,16 @@
           <input id="material-file-input" type="file" accept="image/*" multiple hidden />
         </div>
         <div id="material-preview-list" class="sub-preview-list"></div>
+      </div>
 
+      <div class="form-right">
         <label class="field-label">タイトル</label>
         <input id="input-title" type="text" placeholder="例: パッケージ案A、サムネ案・横向き(任意)" />
+
+        <label class="field-label">所属カテゴリ</label>
+        <select id="input-tab-id" class="select-input">
+          <option value="">— 未設定(全てに表示)—</option>
+        </select>
 
         <label class="field-label">タグ</label>
         <div id="input-tags-wrap" class="tag-picker-wrap">
@@ -126,16 +133,7 @@
         </div>
 
         <label class="field-label">プロンプト <span class="required">*</span></label>
-        <textarea id="input-prompt" rows="10" placeholder="生成に使用したプロンプトを貼り付け"></textarea>
-      </div>
-
-      <div class="form-right">
-        <label class="field-label">所属カテゴリ</label>
-        <select id="input-tab-id" class="select-input">
-          <option value="">— 未設定(全てに表示)—</option>
-        </select>
-        <p class="field-hint" style="margin-top:4px">カテゴリを選ぶと、そのカテゴリの中に表示されます。</p>
-
+        <textarea id="input-prompt" rows="18" placeholder="生成に使用したプロンプトを貼り付け"></textarea>
       </div>
     </div>
 
@@ -235,9 +233,16 @@
           <input id="edit-material-file-input" type="file" accept="image/*" multiple hidden />
         </div>
         <div id="edit-material-preview-list" class="sub-preview-list"></div>
+      </div>
 
+      <div class="form-right">
         <label class="field-label">タイトル</label>
         <input id="edit-title" type="text" placeholder="例: パッケージ案A、サムネ案・横向き(任意)" />
+
+        <label class="field-label">所属カテゴリ</label>
+        <select id="edit-tab-id" class="select-input">
+          <option value="">— 未設定(全てに表示)—</option>
+        </select>
 
         <label class="field-label">タグ</label>
         <div id="edit-tags-wrap" class="tag-picker-wrap">
@@ -250,16 +255,7 @@
         </div>
 
         <label class="field-label">プロンプト <span class="required">*</span></label>
-        <textarea id="edit-prompt" rows="10" placeholder="生成に使用したプロンプト"></textarea>
-      </div>
-
-      <div class="form-right">
-        <label class="field-label">所属カテゴリ</label>
-        <select id="edit-tab-id" class="select-input">
-          <option value="">— 未設定(全てに表示)—</option>
-        </select>
-        <p class="field-hint" style="margin-top:4px">カテゴリは後からも変更・振り分けできます。</p>
-
+        <textarea id="edit-prompt" rows="18" placeholder="生成に使用したプロンプト"></textarea>
       </div>
     </div>
 
