@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.9.0" />
+<link rel="stylesheet" href="style.css?v=1.10.0" />
 </head>
 <body>
 
@@ -41,7 +41,7 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.9.0</span>
+    <span class="version-badge">v1.10.0</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
@@ -98,10 +98,18 @@
         <label class="field-label">サブ画像(複数OK)</label>
         <div id="sub-dropzone" class="dropzone sub-dropzone">
           <div class="dz-icon" style="font-size:22px">+</div>
-          <div class="dz-text" style="font-size:12px">ドラッグ&ドロップで追加<br /><span>複数同時OK</span></div>
+          <div class="dz-text" style="font-size:12px">ドラッグ&ドロップで追加<br /><span>同案のバリエーション</span></div>
           <input id="sub-file-input" type="file" accept="image/*" multiple hidden />
         </div>
         <div id="sub-preview-list" class="sub-preview-list"></div>
+
+        <label class="field-label">素材画像(商品画像・参考画像など)</label>
+        <div id="material-dropzone" class="dropzone sub-dropzone">
+          <div class="dz-icon" style="font-size:22px">+</div>
+          <div class="dz-text" style="font-size:12px">ドラッグ&ドロップで追加<br /><span>商品写真・元素材など</span></div>
+          <input id="material-file-input" type="file" accept="image/*" multiple hidden />
+        </div>
+        <div id="material-preview-list" class="sub-preview-list"></div>
 
         <label class="field-label">タイトル</label>
         <input id="input-title" type="text" placeholder="例: パッケージ案A、サムネ案・横向き(任意)" />
@@ -159,16 +167,28 @@
           <span id="detail-date" class="date"></span>
         </div>
 
-        <div class="section-label">
-          <span>PROMPT</span>
-          <button id="copy-prompt" class="btn-copy">copy</button>
+        <div id="tags-section" style="display:none">
+          <div class="section-label"><span>タグ</span></div>
+          <div id="detail-tags" class="detail-tags"></div>
         </div>
-        <pre id="detail-prompt" class="prompt-box"></pre>
 
         <div id="sub-images-section" style="display:none">
           <div class="section-label"><span>サブ画像</span></div>
           <div id="detail-sub-images" class="detail-sub-images"></div>
         </div>
+
+        <div id="material-images-section" style="display:none">
+          <div class="section-label"><span>素材画像</span></div>
+          <div id="detail-material-images" class="detail-sub-images"></div>
+        </div>
+
+        <details id="prompt-details" class="prompt-collapsible">
+          <summary>
+            <span class="prompt-summary-label">プロンプトを表示</span>
+            <button id="copy-prompt" class="btn-copy" type="button">copy</button>
+          </summary>
+          <pre id="detail-prompt" class="prompt-box"></pre>
+        </details>
 
         <div id="negative-section" style="display:none">
           <div class="section-label">
@@ -176,11 +196,6 @@
             <button id="copy-negative" class="btn-copy">copy</button>
           </div>
           <pre id="detail-negative" class="prompt-box"></pre>
-        </div>
-
-        <div id="tags-section" style="display:none">
-          <div class="section-label"><span>TAGS</span></div>
-          <div id="detail-tags" class="detail-tags"></div>
         </div>
 
         <div id="note-section" style="display:none">
@@ -214,10 +229,18 @@
         <label class="field-label">サブ画像(複数OK)</label>
         <div id="edit-sub-dropzone" class="dropzone sub-dropzone">
           <div class="dz-icon" style="font-size:22px">+</div>
-          <div class="dz-text" style="font-size:12px">ドラッグ&ドロップで追加<br /><span>複数同時OK</span></div>
+          <div class="dz-text" style="font-size:12px">ドラッグ&ドロップで追加<br /><span>同案のバリエーション</span></div>
           <input id="edit-sub-file-input" type="file" accept="image/*" multiple hidden />
         </div>
         <div id="edit-sub-preview-list" class="sub-preview-list"></div>
+
+        <label class="field-label">素材画像(商品画像・参考画像など)</label>
+        <div id="edit-material-dropzone" class="dropzone sub-dropzone">
+          <div class="dz-icon" style="font-size:22px">+</div>
+          <div class="dz-text" style="font-size:12px">ドラッグ&ドロップで追加<br /><span>商品写真・元素材など</span></div>
+          <input id="edit-material-file-input" type="file" accept="image/*" multiple hidden />
+        </div>
+        <div id="edit-material-preview-list" class="sub-preview-list"></div>
 
         <label class="field-label">タイトル</label>
         <input id="edit-title" type="text" placeholder="例: パッケージ案A、サムネ案・横向き(任意)" />
@@ -294,6 +317,6 @@
   </div>
 </div>
 
-<script src="app.js?v=1.9.0"></script>
+<script src="app.js?v=1.10.0"></script>
 </body>
 </html>
