@@ -112,6 +112,150 @@ input, textarea { font-family: inherit; }
 }
 .btn-icon:hover { background: var(--bg-2); border-color: var(--ink-soft); }
 
+/* ========== TAB BAR ========== */
+.tab-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 40px;
+  border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.tab-list {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px 11px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  position: relative;
+}
+.tab-item:hover {
+  color: var(--ink);
+  background: var(--bg-2);
+}
+.tab-item.active {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+  font-weight: 500;
+}
+.tab-item-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+.tab-item-name {
+  line-height: 1;
+}
+.tab-item-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--ink-mute);
+  background: var(--bg-2);
+  padding: 2px 6px;
+  border-radius: 999px;
+  min-width: 18px;
+  text-align: center;
+}
+.tab-item.active .tab-item-count {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.tab-item-actions {
+  display: none;
+  margin-left: 4px;
+  gap: 2px;
+}
+.tab-item:hover .tab-item-actions,
+.tab-item.active .tab-item-actions {
+  display: inline-flex;
+}
+.tab-mini-btn {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  font-size: 10px;
+  color: var(--ink-mute);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.tab-mini-btn:hover {
+  background: var(--ink);
+  color: var(--bg);
+}
+.btn-tab-add {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  font-size: 18px;
+  color: var(--ink-mute);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  margin-left: 8px;
+  transition: all 0.15s;
+}
+.btn-tab-add:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  border-style: solid;
+}
+
+/* ========== ICON SUGGESTIONS ========== */
+.icon-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+.icon-chip {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.icon-chip:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+/* ========== SELECT ========== */
+.select-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13.5px;
+  font-family: inherit;
+  cursor: pointer;
+}
+.select-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 /* ========== TOOLBAR ========== */
 .toolbar {
   padding: 20px 40px;
@@ -701,6 +845,8 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
 @media (max-width: 720px) {
   .site-header { padding: 20px; }
   .logo-full { height: 32px; }
+  .tab-bar { padding: 0 16px; }
+  .tab-item { padding: 10px 12px 9px; font-size: 12px; }
   .toolbar { padding: 16px 20px; }
   main { padding: 20px; }
   .gallery { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
