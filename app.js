@@ -311,7 +311,7 @@ function render() {
         ${e.title ? `<h3 class="card-title">${escapeHtml(e.title)}</h3>` : '<h3 class="card-title card-title-placeholder">無題</h3>'}
         ${e.tags && e.tags.length ? `<div class="card-tags">${e.tags.map(t => `<span class="card-tag">${escapeHtml(t)}</span>`).join("")}</div>` : ''}
         <div class="card-meta">
-          <span class="card-model">${escapeHtml(e.category || "—")}</span>
+          <span class="card-model">${escapeHtml(getTabNameById(e.tabId) || "—")}</span>
           <span>${fmtDate(e.createdAt)}</span>
         </div>
       </div>
@@ -354,8 +354,8 @@ function renderTabBar() {
       <span class="tab-item-name">${escapeHtml(t.name)}</span>
       <span class="tab-item-count">${counts[t.id] || 0}</span>
       <span class="tab-item-actions">
-        ${i > 0 ? `<button class="tab-mini-btn" data-action="left" data-tab-id="${escapeHtml(t.id)}" title="左へ">◀</button>` : ''}
-        ${i < tabs.length - 1 ? `<button class="tab-mini-btn" data-action="right" data-tab-id="${escapeHtml(t.id)}" title="右へ">▶</button>` : ''}
+        ${i > 0 ? `<button class="tab-mini-btn" data-action="left" data-tab-id="${escapeHtml(t.id)}" title="左へ移動">◀</button>` : ''}
+        ${i < tabs.length - 1 ? `<button class="tab-mini-btn" data-action="right" data-tab-id="${escapeHtml(t.id)}" title="右へ移動">▶</button>` : ''}
         <button class="tab-mini-btn" data-action="edit" data-tab-id="${escapeHtml(t.id)}" title="編集">✎</button>
       </span>
     </div>
@@ -398,7 +398,7 @@ function moveTab(tabId, delta) {
 
 function openNewTab() {
   editingTabId = null;
-  $("tab-edit-title").textContent = "新しいタブを追加";
+  $("tab-edit-title").textContent = "新しいカテゴリを追加";
   $("tab-edit-icon").value = "📦";
   $("tab-edit-name").value = "";
   $("btn-tab-delete").style.display = "none";
@@ -411,7 +411,7 @@ function openTabEdit(tabId) {
   const t = tabs.find((x) => x.id === tabId);
   if (!t) return;
   editingTabId = tabId;
-  $("tab-edit-title").textContent = "タブを編集";
+  $("tab-edit-title").textContent = "カテゴリを編集";
   $("tab-edit-icon").value = t.icon || "🏷️";
   $("tab-edit-name").value = t.name || "";
   $("btn-tab-delete").style.display = "inline-block";
@@ -435,7 +435,7 @@ async function saveTab() {
     if (editingTabId) {
       // 編集
       const t = tabs.find((x) => x.id === editingTabId);
-      if (!t) throw new Error("対象タブが見つかりません");
+      if (!t) throw new Error("対象カテゴリが見つかりません");
       t.name = name;
       t.icon = icon;
       await saveData(`Update tab: ${name}`);
@@ -459,7 +459,7 @@ async function deleteTab() {
   if (!editingTabId) return;
   const t = tabs.find((x) => x.id === editingTabId);
   if (!t) return;
-  if (!confirm(`タブ「${t.name}」を削除しますか?\n(中の画像は削除されません。「全て」タブで見られます)`)) return;
+  if (!confirm(`カテゴリ「${t.name}」を削除しますか?\n(中の画像は削除されません。「全て」で見られます)`)) return;
 
   try {
     // タブ自体を削除
@@ -479,10 +479,17 @@ async function deleteTab() {
 
 // 追加・編集モーダルのタブ選択を最新のtabsで埋める
 function refreshTabSelectOptions() {
-  const optionsHtml = '<option value="">— 未設定(全てに表示)—</option>' +
+  const optionsHtml = '<option value="">— カテゴリなし(全てに表示)—</option>' +
     tabs.map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.icon || '🏷️')} ${escapeHtml(t.name)}</option>`).join("");
   $("input-tab-id").innerHTML = optionsHtml;
   $("edit-tab-id").innerHTML = optionsHtml;
+}
+
+// 所属カテゴリ(タブ)名を取得するヘルパー
+function getTabNameById(tabId) {
+  if (!tabId) return null;
+  const t = tabs.find((x) => x.id === tabId);
+  return t ? t.name : null;
 }
 
 // ---------- タグピッカー ----------
@@ -513,7 +520,7 @@ function renderTagPickerSelected(selectedId, tagsArray, popupId, optionsId) {
 function renderTagPickerOptions(optionsId, tagsArray, popupId, selectedId) {
   const opts = $(optionsId);
   if (tagDefs.length === 0) {
-    opts.innerHTML = '<p class="tag-picker-empty">登録されたタグがありません。右上の 🏷️ から追加してください。</p>';
+    opts.innerHTML = '<p class="tag-picker-empty">登録されたタグがありません。右上の「🏷️ タグ管理」から追加してください。</p>';
     return;
   }
   // 名前順
@@ -791,10 +798,11 @@ function openDetail(id) {
     $("detail-title").textContent = e.title;
   } else $("detail-title").style.display = "none";
 
-  // カテゴリ(新)
-  if (e.category) {
+  // カテゴリ(タブ名)
+  const tabName = getTabNameById(e.tabId);
+  if (tabName) {
     $("detail-category").style.display = "inline-block";
-    $("detail-category").textContent = e.category;
+    $("detail-category").textContent = tabName;
   } else $("detail-category").style.display = "none";
 
   // モデル(旧データ互換)
@@ -899,7 +907,6 @@ function openEdit() {
   // 既存の値をフォームに読み込み
   $("edit-prompt").value = e.prompt || "";
   $("edit-title").value = e.title || "";
-  $("edit-category").value = e.category || "";
   $("edit-tab-id").value = e.tabId || "";
   editTags = (e.tags || []).slice();
   renderTagPickerSelected("edit-tags-selected", editTags, "edit-tags-popup", "edit-tags-options");
@@ -1068,7 +1075,6 @@ async function updateEntry() {
       ...entries[idx],
       prompt,
       title: $("edit-title").value.trim() || undefined,
-      category: $("edit-category").value.trim() || undefined,
       tabId: $("edit-tab-id").value || undefined,
       tags: editTags.length ? editTags.slice() : undefined,
       subImages: finalSubImages.length ? finalSubImages : undefined,
@@ -1116,7 +1122,6 @@ function resetAddForm() {
   $("material-preview-list").innerHTML = "";
   $("input-prompt").value = "";
   $("input-title").value = "";
-  $("input-category").value = "";
   inputTags = [];
   renderTagPickerSelected("input-tags-selected", inputTags, "input-tags-popup", "input-tags-options");
   $("input-tags-popup").style.display = "none";
@@ -1258,7 +1263,6 @@ async function saveEntry() {
       materialImages: materialImagePaths.length ? materialImagePaths : undefined,
       tabId: $("input-tab-id").value || undefined,
       title: $("input-title").value.trim() || undefined,
-      category: $("input-category").value.trim() || undefined,
       tags: inputTags.length ? inputTags.slice() : undefined,
       prompt,
       createdAt: new Date().toISOString()
