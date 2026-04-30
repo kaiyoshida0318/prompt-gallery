@@ -414,6 +414,11 @@ main { padding: 32px 40px 80px; }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+.card-title-placeholder {
+  color: var(--ink-mute);
+  font-style: italic;
+  font-weight: 400;
+}
 .card-prompt {
   font-size: 12.5px;
   color: var(--ink-soft);
@@ -779,6 +784,43 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
   transition: transform 0.15s;
 }
 .detail-sub-images img:hover { transform: scale(1.03); }
+
+/* ========== COLLAPSIBLE PROMPT ========== */
+.prompt-collapsible {
+  margin-top: 16px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+.prompt-collapsible summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  list-style: none;
+}
+.prompt-collapsible summary::-webkit-details-marker { display: none; }
+.prompt-collapsible .prompt-summary-label::before {
+  content: "▸ ";
+  color: var(--ink-mute);
+  margin-right: 4px;
+  display: inline-block;
+  transition: transform 0.15s;
+}
+.prompt-collapsible[open] .prompt-summary-label::before {
+  content: "▾ ";
+}
+.prompt-collapsible summary:hover .prompt-summary-label {
+  color: var(--ink);
+}
+.prompt-collapsible pre {
+  margin-top: 8px;
+}
 
 .preview-wrap {
   border: 1px solid var(--line);
