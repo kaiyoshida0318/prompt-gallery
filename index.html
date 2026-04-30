@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.11.0" />
+<link rel="stylesheet" href="style.css?v=1.12.0" />
 </head>
 <body>
 
@@ -41,13 +41,13 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.11.0</span>
+    <span class="version-badge">v1.12.0</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
     </div>
     <button id="btn-add" class="btn-add">+ Add</button>
-    <button id="btn-tag-mgr" class="btn-icon" title="タグ管理">🏷️</button>
+    <button id="btn-tag-mgr" class="btn-secondary btn-header" title="タグの追加・編集・削除">🏷️ タグ管理</button>
     <button id="btn-settings" class="btn-icon" title="接続設定">⚙</button>
   </div>
 </header>
@@ -55,7 +55,7 @@
 <!-- ============== タブバー ============== -->
 <nav class="tab-bar">
   <div id="tab-list" class="tab-list"></div>
-  <button id="btn-add-tab" class="btn-tab-add" title="新しいタブを追加">+</button>
+  <button id="btn-add-tab" class="btn-tab-add" title="新しいカテゴリを追加">+</button>
 </nav>
 
 <!-- ============== 検索バー ============== -->
@@ -121,7 +121,7 @@
           <button type="button" id="input-tags-toggle" class="tag-picker-toggle">+ タグを選ぶ</button>
           <div id="input-tags-popup" class="tag-picker-popup" style="display:none">
             <div id="input-tags-options" class="tag-picker-options"></div>
-            <p class="field-hint" style="margin:8px 0 0">タグを増やすには右上の <b>🏷️</b> ボタンから「タグ管理」を開いてください。</p>
+            <p class="field-hint" style="margin:8px 0 0">タグを増やすには右上の <b>🏷️ タグ管理</b> ボタンから追加してください。</p>
           </div>
         </div>
 
@@ -130,20 +130,12 @@
       </div>
 
       <div class="form-right">
-        <label class="field-label">所属タブ</label>
+        <label class="field-label">所属カテゴリ</label>
         <select id="input-tab-id" class="select-input">
           <option value="">— 未設定(全てに表示)—</option>
         </select>
-        <p class="field-hint" style="margin-top:4px">タブを選ぶと、そのタブの中に表示されます。</p>
+        <p class="field-hint" style="margin-top:4px">カテゴリを選ぶと、そのカテゴリの中に表示されます。</p>
 
-        <label class="field-label" style="margin-top:18px">カテゴリ</label>
-        <input id="input-category" type="text" list="category-suggestions" placeholder="カテゴリを入力または選択" />
-        <datalist id="category-suggestions">
-          <option value="まとめ出力"></option>
-          <option value="良い修正"></option>
-          <option value="サムネ案"></option>
-        </datalist>
-        <p class="field-hint">候補:まとめ出力 / 良い修正 / サムネ案<br />(自由入力もOK)</p>
       </div>
     </div>
 
@@ -255,7 +247,7 @@
           <button type="button" id="edit-tags-toggle" class="tag-picker-toggle">+ タグを選ぶ</button>
           <div id="edit-tags-popup" class="tag-picker-popup" style="display:none">
             <div id="edit-tags-options" class="tag-picker-options"></div>
-            <p class="field-hint" style="margin:8px 0 0">タグを増やすには右上の <b>🏷️</b> ボタンから「タグ管理」を開いてください。</p>
+            <p class="field-hint" style="margin:8px 0 0">タグを増やすには右上の <b>🏷️ タグ管理</b> ボタンから追加してください。</p>
           </div>
         </div>
 
@@ -264,20 +256,12 @@
       </div>
 
       <div class="form-right">
-        <label class="field-label">所属タブ</label>
+        <label class="field-label">所属カテゴリ</label>
         <select id="edit-tab-id" class="select-input">
           <option value="">— 未設定(全てに表示)—</option>
         </select>
-        <p class="field-hint" style="margin-top:4px">後から変更・振り分けできます。</p>
+        <p class="field-hint" style="margin-top:4px">カテゴリは後からも変更・振り分けできます。</p>
 
-        <label class="field-label" style="margin-top:18px">カテゴリ</label>
-        <input id="edit-category" type="text" list="edit-category-suggestions" placeholder="カテゴリを入力または選択" />
-        <datalist id="edit-category-suggestions">
-          <option value="まとめ出力"></option>
-          <option value="良い修正"></option>
-          <option value="サムネ案"></option>
-        </datalist>
-        <p class="field-hint">候補:まとめ出力 / 良い修正 / サムネ案<br />(自由入力もOK)</p>
       </div>
     </div>
 
@@ -293,7 +277,7 @@
 <div id="tab-edit-modal" class="modal" style="display:none">
   <div class="modal-inner">
     <button class="modal-close" data-close="tab-edit-modal">×</button>
-    <h2 id="tab-edit-title">タブを編集</h2>
+    <h2 id="tab-edit-title">カテゴリを編集</h2>
 
     <label class="field-label">アイコン(絵文字)</label>
     <input id="tab-edit-icon" type="text" maxlength="4" placeholder="📦 など 1文字" />
@@ -313,14 +297,14 @@
     </div>
 
     <label class="field-label">タブ名 <span class="required">*</span></label>
-    <input id="tab-edit-name" type="text" placeholder="例: パッケージ案制作" />
+    <input id="tab-edit-name" type="text" placeholder="例: パッケージ案、トップ画像制作、サムネ案" />
 
     <div class="modal-actions">
-      <button id="btn-tab-delete" class="btn-danger" style="margin-right:auto">このタブを削除</button>
+      <button id="btn-tab-delete" class="btn-danger" style="margin-right:auto">このカテゴリを削除</button>
       <button class="btn-secondary" data-close="tab-edit-modal">キャンセル</button>
       <button id="btn-tab-save" class="btn-primary">保存</button>
     </div>
-    <p class="field-hint" style="margin-top:14px">※ タブを削除しても、中の画像は削除されません(「全て」タブで見られます)。</p>
+    <p class="field-hint" style="margin-top:14px">※ カテゴリを削除しても、中の画像は削除されません(「全て」で見られます)。</p>
   </div>
 </div>
 
@@ -346,6 +330,6 @@
   </div>
 </div>
 
-<script src="app.js?v=1.11.0"></script>
+<script src="app.js?v=1.12.0"></script>
 </body>
 </html>
