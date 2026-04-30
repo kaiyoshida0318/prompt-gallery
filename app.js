@@ -309,8 +309,9 @@ function renderTabBar() {
     if (e.tabId) counts[e.tabId] = (counts[e.tabId] || 0) + 1;
   }
   // 「全て」+ 各タブ
+  // 「全て」タブにマーカークラスを付与(視覚的に区別)
   const allBtn = `
-    <div class="tab-item ${activeTabId === '_all' ? 'active' : ''}" data-tab-id="_all">
+    <div class="tab-item tab-item-all ${activeTabId === '_all' ? 'active' : ''}" data-tab-id="_all">
       <span class="tab-item-icon">📚</span>
       <span class="tab-item-name">全て</span>
       <span class="tab-item-count">${counts._all || 0}</span>
@@ -331,7 +332,7 @@ function renderTabBar() {
     </div>
   `;
   }).join("");
-  tabList.innerHTML = allBtn + tabsHtml;
+  tabList.innerHTML = tabsHtml + allBtn;
 
   // タブクリックで切り替え
   tabList.querySelectorAll(".tab-item").forEach((el) => {
