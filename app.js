@@ -323,11 +323,12 @@ function render() {
       <div class="card-img"><img data-path="${escapeHtml(e.image)}" alt="" loading="lazy" /></div>
       <div class="card-body">
         ${e.title ? `<h3 class="card-title">${escapeHtml(e.title)}</h3>` : '<h3 class="card-title card-title-placeholder">無題</h3>'}
+        <div class="card-category">${escapeHtml(getTabNameById(e.tabId) || "—")}</div>
+        ${e.tags && e.tags.length ? `<div class="card-tags">${e.tags.map(t => `<span class="card-tag">${escapeHtml(t)}</span>`).join("")}</div>` : ''}
         <div class="card-meta">
-          <span class="card-model">${escapeHtml(getTabNameById(e.tabId) || "—")}</span>
+          <span></span>
           <span>${fmtDate(e.createdAt)}</span>
         </div>
-        ${e.tags && e.tags.length ? `<div class="card-tags">${e.tags.map(t => `<span class="card-tag">${escapeHtml(t)}</span>`).join("")}</div>` : ''}
       </div>
     </div>
   `).join("");
@@ -839,6 +840,13 @@ function openDetail(id) {
       });
     });
   } else $("material-images-section").style.display = "none";
+
+  // 所属カテゴリ(素材画像とタグの間に表示)
+  const categoryName = getTabNameById(e.tabId);
+  if (categoryName) {
+    $("category-section").style.display = "block";
+    $("detail-category-name").textContent = categoryName;
+  } else $("category-section").style.display = "none";
 
   // プロンプトはコピー用に保持(画面には表示しない)
   $("detail-prompt").textContent = e.prompt || "";
