@@ -251,7 +251,7 @@ function render() {
     if (activeTabId !== "_all" && e.tabId !== activeTabId) return false;
     if (activeTag && !(e.tags || []).includes(activeTag)) return false;
     if (!q) return true;
-    const hay = [e.prompt, e.negative, e.note, e.model, e.category, ...(e.tags || [])].filter(Boolean).join(" ").toLowerCase();
+    const hay = [e.title, e.prompt, e.negative, e.note, e.model, e.category, ...(e.tags || [])].filter(Boolean).join(" ").toLowerCase();
     return hay.includes(q);
   });
 
@@ -280,6 +280,7 @@ function render() {
     <div class="card" data-id="${e.id}">
       <div class="card-img"><img data-path="${escapeHtml(e.image)}" alt="" loading="lazy" /></div>
       <div class="card-body">
+        ${e.title ? `<h3 class="card-title">${escapeHtml(e.title)}</h3>` : ''}
         <div class="card-prompt">${escapeHtml(e.prompt || "")}</div>
         <div class="card-meta">
           <span class="card-model">${escapeHtml(e.category || e.model || "—")}</span>
@@ -510,6 +511,12 @@ function openDetail(id) {
   $("detail-prompt").textContent = e.prompt || "";
   $("detail-date").textContent = fmtDate(e.createdAt);
 
+  // タイトル
+  if (e.title) {
+    $("detail-title").style.display = "block";
+    $("detail-title").textContent = e.title;
+  } else $("detail-title").style.display = "none";
+
   // カテゴリ(新)
   if (e.category) {
     $("detail-category").style.display = "inline-block";
@@ -592,6 +599,7 @@ function openEdit() {
   loadImageInto($("edit-preview-img"), e.image);
   // 既存の値をフォームに読み込み
   $("edit-prompt").value = e.prompt || "";
+  $("edit-title").value = e.title || "";
   $("edit-category").value = e.category || "";
   $("edit-tab-id").value = e.tabId || "";
   $("edit-status").textContent = "";
@@ -695,6 +703,7 @@ async function updateEntry() {
     const updated = {
       ...entries[idx],
       prompt,
+      title: $("edit-title").value.trim() || undefined,
       category: $("edit-category").value.trim() || undefined,
       tabId: $("edit-tab-id").value || undefined,
       subImages: finalSubImages.length ? finalSubImages : undefined,
@@ -734,6 +743,7 @@ function resetAddForm() {
   $("sub-file-input").value = "";
   $("sub-preview-list").innerHTML = "";
   $("input-prompt").value = "";
+  $("input-title").value = "";
   $("input-category").value = "";
   // 現在見ているタブをデフォルト所属に(「全て」のときは未設定)
   $("input-tab-id").value = activeTabId === "_all" ? "" : activeTabId;
@@ -861,6 +871,7 @@ async function saveEntry() {
       image: imgPath,
       subImages: subImagePaths.length ? subImagePaths : undefined,
       tabId: $("input-tab-id").value || undefined,
+      title: $("input-title").value.trim() || undefined,
       category: $("input-category").value.trim() || undefined,
       prompt,
       createdAt: new Date().toISOString()
