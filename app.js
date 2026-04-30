@@ -274,7 +274,7 @@ async function verifyAuth(a) {
 // ---------- レンダリング ----------
 function render() {
   const q = $("search-input").value.trim().toLowerCase();
-  const filtered = entries.filter((e) => {
+  let filtered = entries.filter((e) => {
     // タブ絞り込み:"_all"は全件表示、それ以外はtabIdが一致するもの
     if (activeTabId !== "_all" && e.tabId !== activeTabId) return false;
     if (activeTag && !(e.tags || []).includes(activeTag)) return false;
@@ -282,6 +282,20 @@ function render() {
     const hay = [e.title, e.prompt, e.negative, e.note, e.model, e.category, ...(e.tags || [])].filter(Boolean).join(" ").toLowerCase();
     return hay.includes(q);
   });
+
+  // 「全て」タブのときは、カテゴリ(タブ)の並び順でソート
+  // tabs配列の順番を優先し、未設定のものを最後に。同じカテゴリ内は作成日(新しい順)
+  if (activeTabId === "_all") {
+    const tabOrder = new Map();
+    tabs.forEach((t, i) => tabOrder.set(t.id, i));
+    filtered = filtered.slice().sort((a, b) => {
+      const aOrder = a.tabId && tabOrder.has(a.tabId) ? tabOrder.get(a.tabId) : Number.MAX_SAFE_INTEGER;
+      const bOrder = b.tabId && tabOrder.has(b.tabId) ? tabOrder.get(b.tabId) : Number.MAX_SAFE_INTEGER;
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      // 同じカテゴリ内は新しい順
+      return (b.createdAt || "").localeCompare(a.createdAt || "");
+    });
+  }
 
   $("stat-count").textContent = entries.length;
 
