@@ -112,6 +112,15 @@ input, textarea { font-family: inherit; }
 }
 .btn-icon:hover { background: var(--bg-2); border-color: var(--ink-soft); }
 
+/* ヘッダー内のラベル付きセカンダリボタン(高さをbtn-addと揃える) */
+.btn-header {
+  margin: 0;
+  padding: 9px 14px;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
 /* ========== TAB BAR ========== */
 .tab-bar {
   display: flex;
