@@ -41,13 +41,13 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.13.7</span>
+    <span class="version-badge">v1.13.8</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
     </div>
     <button id="btn-add" class="btn-add">+ Add</button>
-    <button id="btn-tag-mgr" class="btn-secondary btn-header" title="タグの追加・編集・削除">🏷️ タグ管理</button>
+    <button id="btn-tag-mgr" class="btn-secondary btn-header" title="素材データの追加・編集・削除">🏷️ 素材データ管理</button>
     <button id="btn-settings" class="btn-icon" title="接続設定">⚙</button>
   </div>
 </header>
@@ -62,7 +62,7 @@
 <div class="toolbar">
   <div class="search-wrap">
     <span class="search-icon">⌕</span>
-    <input id="search-input" type="text" placeholder="プロンプト・タグ・モデル名で検索…" />
+    <input id="search-input" type="text" placeholder="プロンプト・素材データ・モデル名で検索…" />
   </div>
   <div id="tag-filters" class="tag-filters"></div>
 </div>
@@ -122,13 +122,13 @@
           <option value="">— 未設定(全てに表示)—</option>
         </select>
 
-        <label class="field-label">タグ</label>
+        <label class="field-label">素材データ</label>
         <div id="input-tags-wrap" class="tag-picker-wrap">
           <div id="input-tags-selected" class="tag-picker-selected"></div>
-          <button type="button" id="input-tags-toggle" class="tag-picker-toggle">+ タグを選ぶ</button>
+          <button type="button" id="input-tags-toggle" class="tag-picker-toggle">+ 素材データを選ぶ</button>
           <div id="input-tags-popup" class="tag-picker-popup" style="display:none">
             <div id="input-tags-options" class="tag-picker-options"></div>
-            <p class="field-hint" style="margin:8px 0 0">タグを増やすには右上の <b>🏷️ タグ管理</b> ボタンから追加してください。</p>
+            <p class="field-hint" style="margin:8px 0 0">素材データを増やすには右上の <b>🏷️ 素材データ管理</b> ボタンから追加してください。</p>
           </div>
         </div>
 
@@ -175,7 +175,7 @@
         </div>
 
         <div id="tags-section" style="display:none">
-          <div class="section-label"><span>タグ</span></div>
+          <div class="section-label"><span>素材データ</span></div>
           <div id="detail-tags" class="detail-tags"></div>
         </div>
 
@@ -244,13 +244,13 @@
           <option value="">— 未設定(全てに表示)—</option>
         </select>
 
-        <label class="field-label">タグ</label>
+        <label class="field-label">素材データ</label>
         <div id="edit-tags-wrap" class="tag-picker-wrap">
           <div id="edit-tags-selected" class="tag-picker-selected"></div>
-          <button type="button" id="edit-tags-toggle" class="tag-picker-toggle">+ タグを選ぶ</button>
+          <button type="button" id="edit-tags-toggle" class="tag-picker-toggle">+ 素材データを選ぶ</button>
           <div id="edit-tags-popup" class="tag-picker-popup" style="display:none">
             <div id="edit-tags-options" class="tag-picker-options"></div>
-            <p class="field-hint" style="margin:8px 0 0">タグを増やすには右上の <b>🏷️ タグ管理</b> ボタンから追加してください。</p>
+            <p class="field-hint" style="margin:8px 0 0">素材データを増やすには右上の <b>🏷️ 素材データ管理</b> ボタンから追加してください。</p>
           </div>
         </div>
 
@@ -302,20 +302,20 @@
   </div>
 </div>
 
-<!-- ============== タグ管理モーダル ============== -->
+<!-- ============== 素材データ管理モーダル ============== -->
 <div id="tag-mgr-modal" class="modal" style="display:none">
   <div class="modal-inner">
     <button class="modal-close" data-close="tag-mgr-modal">×</button>
-    <h2>タグ管理</h2>
-    <p class="auth-desc" style="margin-bottom:16px">商品編集画面で使えるタグを管理します。</p>
+    <h2>素材データ管理</h2>
+    <p class="auth-desc" style="margin-bottom:16px">商品編集画面で使える素材データを管理します。</p>
 
-    <label class="field-label">新しいタグを追加</label>
+    <label class="field-label">新しい素材データを追加</label>
     <div style="display:flex; gap:8px">
-      <input id="tag-mgr-new-name" type="text" placeholder="例: 写真、ナチュラル、食品" />
+      <input id="tag-mgr-new-name" type="text" placeholder="例: ライバル画像、参考写真、ロゴ素材" />
       <button id="tag-mgr-add" class="btn-primary" style="margin:0; flex-shrink:0">追加</button>
     </div>
 
-    <label class="field-label" style="margin-top:24px">登録済みタグ</label>
+    <label class="field-label" style="margin-top:24px">登録済み素材データ</label>
     <div id="tag-mgr-list" class="tag-mgr-list"></div>
 
     <div class="modal-actions">
@@ -324,6 +324,6 @@
   </div>
 </div>
 
-<script src="app.js?v=1.13.5"></script>
+<script src="app.js?v=1.13.8"></script>
 </body>
 </html>
