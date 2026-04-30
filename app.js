@@ -88,7 +88,7 @@ async function loadData() {
       }
     }
     if (added) {
-      console.log(`既存タグから ${tagDefs.length - definedNames.size} 件を自動でタグ定義に追加しました`);
+      console.log(`既存の素材データから ${tagDefs.length - definedNames.size} 件を自動で定義に追加しました`);
     }
   } catch (e) {
     console.error("data.json 解析失敗", e);
@@ -535,7 +535,7 @@ function renderTagPickerSelected(selectedId, tagsArray, popupId, optionsId) {
 function renderTagPickerOptions(optionsId, tagsArray, popupId, selectedId) {
   const opts = $(optionsId);
   if (tagDefs.length === 0) {
-    opts.innerHTML = '<p class="tag-picker-empty">登録されたタグがありません。右上の「🏷️ タグ管理」から追加してください。</p>';
+    opts.innerHTML = '<p class="tag-picker-empty">登録された素材データがありません。右上の「🏷️ 素材データ管理」から追加してください。</p>';
     return;
   }
   // 名前順
@@ -601,7 +601,7 @@ function openTagManager() {
 function renderTagManager() {
   const list = $("tag-mgr-list");
   if (tagDefs.length === 0) {
-    list.innerHTML = '<div class="tag-mgr-empty">タグがまだありません。上から追加してください。</div>';
+    list.innerHTML = '<div class="tag-mgr-empty">素材データがまだありません。上から追加してください。</div>';
     return;
   }
   // 各タグの使用件数を集計
@@ -657,7 +657,7 @@ function startRenameTag(tagId) {
       return;
     }
     if (tagDefs.some((x) => x.id !== tagId && x.name === newName)) {
-      alert("同じ名前のタグが既にあります");
+      alert("同じ名前の素材データが既にあります");
       return;
     }
     try {
@@ -693,8 +693,8 @@ async function deleteTagDef(tagId) {
   let count = 0;
   entries.forEach((e) => { if ((e.tags || []).includes(td.name)) count++; });
   const msg = count > 0
-    ? `タグ「${td.name}」を削除しますか?\n${count}件の画像から自動的にタグが外されます。`
-    : `タグ「${td.name}」を削除しますか?`;
+    ? `素材データ「${td.name}」を削除しますか?\n${count}件の画像から自動的に外されます。`
+    : `素材データ「${td.name}」を削除しますか?`;
   if (!confirm(msg)) return;
 
   try {
@@ -717,11 +717,11 @@ async function deleteTagDef(tagId) {
 async function addTagDef() {
   const name = $("tag-mgr-new-name").value.trim();
   if (!name) {
-    alert("タグ名を入力してください");
+    alert("素材データ名を入力してください");
     return;
   }
   if (tagDefs.some((x) => x.name === name)) {
-    alert("同じ名前のタグが既にあります");
+    alert("同じ名前の素材データが既にあります");
     return;
   }
   try {
