@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.14.0" />
+<link rel="stylesheet" href="style.css?v=1.14.1" />
 </head>
 <body>
 
@@ -41,7 +41,7 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.14.0</span>
+    <span class="version-badge">v1.14.1</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
@@ -137,7 +137,7 @@
         </div>
 
         <label class="field-label">プロンプト <span class="required">*</span></label>
-        <textarea id="input-prompt" rows="18" placeholder="生成に使用したプロンプトを貼り付け"></textarea>
+        <textarea id="input-prompt" rows="10" placeholder="生成に使用したプロンプトを貼り付け"></textarea>
       </div>
     </div>
 
@@ -184,8 +184,13 @@
           <div id="detail-tags" class="detail-tags"></div>
         </div>
 
-        <!-- 不可視のプロンプト保持要素(コピー機能のため/CSSで非表示) -->
-        <pre id="detail-prompt" style="display:none"></pre>
+        <div id="prompt-section" style="display:none">
+          <div class="section-label">
+            <span>プロンプト</span>
+            <button id="copy-prompt" class="btn-copy">copy</button>
+          </div>
+          <pre id="detail-prompt" class="prompt-box prompt-box-scroll"></pre>
+        </div>
 
         <div id="negative-section" style="display:none">
           <div class="section-label">
@@ -264,7 +269,7 @@
         </div>
 
         <label class="field-label">プロンプト <span class="required">*</span></label>
-        <textarea id="edit-prompt" rows="18" placeholder="生成に使用したプロンプト"></textarea>
+        <textarea id="edit-prompt" rows="10" placeholder="生成に使用したプロンプト"></textarea>
       </div>
     </div>
 
@@ -333,6 +338,6 @@
   </div>
 </div>
 
-<script src="app.js?v=1.14.0"></script>
+<script src="app.js?v=1.14.1"></script>
 </body>
 </html>
