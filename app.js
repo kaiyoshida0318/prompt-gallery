@@ -861,8 +861,14 @@ function openDetail(id) {
     $("detail-category-name").textContent = categoryName;
   } else $("category-section").style.display = "none";
 
-  // プロンプトはコピー用に保持(画面には表示しない)
-  $("detail-prompt").textContent = e.prompt || "";
+  // プロンプト(10行+スクロール、コピーボタン付き)
+  if (e.prompt) {
+    $("prompt-section").style.display = "block";
+    $("detail-prompt").textContent = e.prompt;
+  } else {
+    $("prompt-section").style.display = "none";
+    $("detail-prompt").textContent = "";
+  }
 
   if (e.negative) {
     $("negative-section").style.display = "block";
@@ -1501,6 +1507,7 @@ function bindEvents() {
   $("search-input").addEventListener("input", render);
 
   // コピー
+  $("copy-prompt").addEventListener("click", (e) => copyText($("detail-prompt").textContent, e.target));
   $("copy-negative").addEventListener("click", (e) => copyText($("detail-negative").textContent, e.target));
 
   // 削除
