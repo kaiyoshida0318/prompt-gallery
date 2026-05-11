@@ -582,6 +582,28 @@ main { padding: 32px 40px 80px; }
 }
 .modal-close:hover { background: var(--bg-2); }
 
+/* 詳細モーダル:右上に編集・削除・閉じるをまとめて配置 */
+.detail-top-actions {
+  position: absolute;
+  top: 14px;
+  right: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2;
+}
+.detail-top-actions .modal-close {
+  position: static;
+  top: auto;
+  right: auto;
+}
+.detail-top-actions .btn-secondary,
+.detail-top-actions .btn-danger {
+  margin: 0;
+  padding: 8px 16px;
+  font-size: 12.5px;
+}
+
 /* ========== AUTH MODAL ========== */
 .auth-modal { background: var(--bg); backdrop-filter: none; }
 .auth-badge {
@@ -1229,13 +1251,6 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
   line-height: 1.7;
   margin: 0;
 }
-.detail-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 20px;
-}
 
 /* ========== RESPONSIVE ========== */
 @media (max-width: 900px) {
@@ -1256,5 +1271,8 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
   .modal-inner.extra-wide { padding: 24px 20px; }
   .detail-grid { grid-template-columns: 1fr; }
   .field-row { grid-template-columns: 1fr; }
+  .detail-top-actions { top: 10px; right: 12px; gap: 4px; }
+  .detail-top-actions .btn-secondary,
+  .detail-top-actions .btn-danger { padding: 6px 10px; font-size: 11px; }
   .stat { display: none; }
 }
