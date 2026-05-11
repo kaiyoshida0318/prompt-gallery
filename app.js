@@ -738,6 +738,168 @@ async function addTagDef() {
   }
 }
 
+// ---------- カテゴリ管理 ----------
+function openCategoryManager() {
+  closeAllModals();
+  $("cat-mgr-new-name").value = "";
+  $("cat-mgr-new-icon").value = "📦";
+  renderCategoryManager();
+  $("cat-mgr-modal").style.display = "flex";
+  setTimeout(() => $("cat-mgr-new-name").focus(), 50);
+}
+
+function renderCategoryManager() {
+  const list = $("cat-mgr-list");
+  if (tabs.length === 0) {
+    list.innerHTML = '<div class="tag-mgr-empty">カテゴリがまだありません。上から追加してください。</div>';
+    return;
+  }
+  // 各カテゴリの使用件数
+  const usageCount = {};
+  entries.forEach((e) => {
+    if (e.tabId) usageCount[e.tabId] = (usageCount[e.tabId] || 0) + 1;
+  });
+
+  list.innerHTML = tabs.map((t, i) => `
+    <div class="tag-mgr-item" data-id="${escapeHtml(t.id)}">
+      <span style="font-size:18px;flex-shrink:0">${escapeHtml(t.icon || '🏷️')}</span>
+      <span class="tag-mgr-item-name">${escapeHtml(t.name)}</span>
+      <span class="tag-mgr-item-count">${usageCount[t.id] || 0} 件</span>
+      ${i > 0 ? `<button class="tag-mgr-btn" data-action="up" data-id="${escapeHtml(t.id)}" title="上へ">◀</button>` : '<span style="width:30px"></span>'}
+      ${i < tabs.length - 1 ? `<button class="tag-mgr-btn" data-action="down" data-id="${escapeHtml(t.id)}" title="下へ">▶</button>` : '<span style="width:30px"></span>'}
+      <button class="tag-mgr-btn" data-action="rename" data-id="${escapeHtml(t.id)}">名前変更</button>
+      <button class="tag-mgr-btn danger" data-action="delete" data-id="${escapeHtml(t.id)}">削除</button>
+    </div>
+  `).join("");
+
+  list.querySelectorAll(".tag-mgr-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      if (action === "up") moveCatInManager(id, -1);
+      else if (action === "down") moveCatInManager(id, 1);
+      else if (action === "rename") startRenameCat(id);
+      else if (action === "delete") deleteCatDef(id);
+    });
+  });
+}
+
+async function moveCatInManager(tabId, delta) {
+  const idx = tabs.findIndex((t) => t.id === tabId);
+  if (idx === -1) return;
+  const newIdx = idx + delta;
+  if (newIdx < 0 || newIdx >= tabs.length) return;
+  const [item] = tabs.splice(idx, 1);
+  tabs.splice(newIdx, 0, item);
+  try {
+    await saveData(`Reorder category: ${item.name}`);
+    renderCategoryManager();
+    render();
+  } catch (err) {
+    alert("並び替え失敗: " + err.message);
+  }
+}
+
+function startRenameCat(tabId) {
+  const t = tabs.find((x) => x.id === tabId);
+  if (!t) return;
+  const item = document.querySelector(`#cat-mgr-list .tag-mgr-item[data-id="${CSS.escape(tabId)}"]`);
+  if (!item) return;
+  const oldName = t.name;
+  const oldIcon = t.icon || "🏷️";
+  item.innerHTML = `
+    <input class="tag-mgr-edit-input" type="text" value="${escapeHtml(oldIcon)}" maxlength="4" style="flex:0 0 50px;text-align:center" data-field="icon" />
+    <input class="tag-mgr-edit-input" type="text" value="${escapeHtml(oldName)}" data-field="name" />
+    <button class="tag-mgr-btn" data-action="confirm">OK</button>
+    <button class="tag-mgr-btn" data-action="cancel">キャンセル</button>
+  `;
+  const nameInput = item.querySelector('[data-field="name"]');
+  const iconInput = item.querySelector('[data-field="icon"]');
+  nameInput.focus();
+  nameInput.select();
+  const confirm = async () => {
+    const newName = nameInput.value.trim();
+    const newIcon = iconInput.value.trim() || "🏷️";
+    if (!newName) {
+      alert("カテゴリ名を入力してください");
+      return;
+    }
+    if (newName === oldName && newIcon === oldIcon) {
+      renderCategoryManager();
+      return;
+    }
+    try {
+      t.name = newName;
+      t.icon = newIcon;
+      await saveData(`Rename category: ${oldName} -> ${newName}`);
+      renderCategoryManager();
+      render();
+    } catch (err) {
+      alert("変更失敗: " + err.message);
+      t.name = oldName;
+      t.icon = oldIcon;
+      renderCategoryManager();
+    }
+  };
+  nameInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); confirm(); }
+    else if (e.key === "Escape") { e.preventDefault(); renderCategoryManager(); }
+  });
+  iconInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); confirm(); }
+    else if (e.key === "Escape") { e.preventDefault(); renderCategoryManager(); }
+  });
+  item.querySelector('[data-action="confirm"]').addEventListener("click", confirm);
+  item.querySelector('[data-action="cancel"]').addEventListener("click", renderCategoryManager);
+}
+
+async function deleteCatDef(tabId) {
+  const t = tabs.find((x) => x.id === tabId);
+  if (!t) return;
+  let count = 0;
+  entries.forEach((e) => { if (e.tabId === tabId) count++; });
+  const msg = count > 0
+    ? `カテゴリ「${t.name}」を削除しますか?\n${count}件の画像はカテゴリなし(「全て」で見られる)になります。`
+    : `カテゴリ「${t.name}」を削除しますか?`;
+  if (!confirm(msg)) return;
+
+  try {
+    tabs = tabs.filter((x) => x.id !== tabId);
+    entries.forEach((e) => {
+      if (e.tabId === tabId) delete e.tabId;
+    });
+    await saveData(`Delete category: ${t.name}`);
+    if (activeTabId === tabId) activeTabId = "_all";
+    renderCategoryManager();
+    render();
+  } catch (err) {
+    alert("削除失敗: " + err.message);
+  }
+}
+
+async function addCatDef() {
+  const name = $("cat-mgr-new-name").value.trim();
+  const icon = $("cat-mgr-new-icon").value.trim() || "🏷️";
+  if (!name) {
+    alert("カテゴリ名を入力してください");
+    return;
+  }
+  if (tabs.some((x) => x.name === name)) {
+    alert("同じ名前のカテゴリが既にあります");
+    return;
+  }
+  try {
+    tabs.push({ id: "tab-" + genId(), name, icon });
+    await saveData(`Add category: ${name}`);
+    $("cat-mgr-new-name").value = "";
+    $("cat-mgr-new-icon").value = "📦";
+    renderCategoryManager();
+    render();
+  } catch (err) {
+    alert("追加失敗: " + err.message);
+  }
+}
+
 function renderTagFilters() {
   const allTags = new Set();
   entries.forEach((e) => (e.tags || []).forEach((t) => allTags.add(t)));
@@ -796,7 +958,7 @@ function handleEditMaterialFiles(files) {
 
 // ---------- 詳細モーダル ----------
 function closeAllModals() {
-  ["add-modal", "edit-modal", "detail-modal", "tab-edit-modal", "tag-mgr-modal"].forEach((id) => {
+  ["add-modal", "edit-modal", "detail-modal", "tab-edit-modal", "tag-mgr-modal", "cat-mgr-modal"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
@@ -1413,6 +1575,22 @@ function bindEvents() {
   $("tag-mgr-add").addEventListener("click", addTagDef);
   $("tag-mgr-new-name").addEventListener("keydown", (e) => {
     if (e.key === "Enter") { e.preventDefault(); addTagDef(); }
+  });
+
+  // カテゴリ管理
+  $("btn-cat-mgr").addEventListener("click", openCategoryManager);
+  $("cat-mgr-add").addEventListener("click", addCatDef);
+  $("cat-mgr-new-name").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addCatDef(); }
+  });
+  $("cat-mgr-new-icon").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addCatDef(); }
+  });
+  // カテゴリ管理モーダル内のアイコン候補クリック
+  document.querySelectorAll(".icon-chip[data-cat-icon]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      $("cat-mgr-new-icon").value = chip.dataset.catIcon;
+    });
   });
 
   // モーダル閉じる(×ボタン or キャンセルボタンのみ。背景クリックでは閉じない)
