@@ -41,12 +41,13 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.14.3</span>
+    <span class="version-badge">v1.14.4</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
     </div>
     <button id="btn-add" class="btn-add">+ Add</button>
+    <button id="btn-cat-mgr" class="btn-secondary btn-header" title="カテゴリの追加・編集・削除">📂 カテゴリ管理</button>
     <button id="btn-tag-mgr" class="btn-secondary btn-header" title="素材データの追加・編集・削除">🏷️ 素材データ管理</button>
     <button id="btn-settings" class="btn-icon" title="接続設定">⚙</button>
   </div>
@@ -337,6 +338,43 @@
   </div>
 </div>
 
-<script src="app.js?v=1.14.1"></script>
+<!-- ============== カテゴリ管理モーダル ============== -->
+<div id="cat-mgr-modal" class="modal" style="display:none">
+  <div class="modal-inner">
+    <button class="modal-close" data-close="cat-mgr-modal">×</button>
+    <h2>カテゴリ管理</h2>
+    <p class="auth-desc" style="margin-bottom:16px">タブとして表示されるカテゴリを管理します。順番の入れ替え・名前変更・削除ができます。</p>
+
+    <label class="field-label">新しいカテゴリを追加</label>
+    <div style="display:flex; gap:8px">
+      <input id="cat-mgr-new-icon" type="text" maxlength="4" placeholder="📦" style="width:60px; text-align:center; flex-shrink:0" />
+      <input id="cat-mgr-new-name" type="text" placeholder="例: パッケージ案制作、トップ画像制作" />
+      <button id="cat-mgr-add" class="btn-primary" style="margin:0; flex-shrink:0">追加</button>
+    </div>
+    <div class="icon-suggestions" style="margin-top:6px">
+      <span class="icon-chip" data-cat-icon="📦">📦</span>
+      <span class="icon-chip" data-cat-icon="🖼️">🖼️</span>
+      <span class="icon-chip" data-cat-icon="🎨">🎨</span>
+      <span class="icon-chip" data-cat-icon="✨">✨</span>
+      <span class="icon-chip" data-cat-icon="📸">📸</span>
+      <span class="icon-chip" data-cat-icon="🎯">🎯</span>
+      <span class="icon-chip" data-cat-icon="💡">💡</span>
+      <span class="icon-chip" data-cat-icon="🔥">🔥</span>
+      <span class="icon-chip" data-cat-icon="⭐">⭐</span>
+      <span class="icon-chip" data-cat-icon="🏷️">🏷️</span>
+      <span class="icon-chip" data-cat-icon="🛍️">🛍️</span>
+      <span class="icon-chip" data-cat-icon="📝">📝</span>
+    </div>
+
+    <label class="field-label" style="margin-top:24px">登録済みカテゴリ(◀▶で並び替え)</label>
+    <div id="cat-mgr-list" class="tag-mgr-list"></div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" data-close="cat-mgr-modal">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js?v=1.14.4"></script>
 </body>
 </html>
