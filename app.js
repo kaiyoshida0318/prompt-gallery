@@ -330,12 +330,15 @@ function render() {
       ? `<div class="card-img"><img data-path="${escapeHtml(e.image)}" alt="" loading="lazy" /></div>`
       : `<div class="card-text-main"><div class="card-text-main-inner">${escapeHtml(e.mainText || "(本文なし)")}</div></div>`;
     const headerName = getTitleHeaderNameById(e.titleHeaderId);
-    const titleText = [headerName, e.title].filter(Boolean).join(" ");
+    const hasContent = headerName || e.title;
+    const titleHtml = hasContent
+      ? `<h3 class="card-title">${headerName ? `<span class="title-header">${escapeHtml(headerName)}</span>` : ''}${headerName && e.title ? ' ' : ''}${e.title ? escapeHtml(e.title) : ''}</h3>`
+      : '<h3 class="card-title card-title-placeholder">無題</h3>';
     return `
     <div class="card" data-id="${e.id}">
       ${imgArea}
       <div class="card-body">
-        ${titleText ? `<h3 class="card-title">${escapeHtml(titleText)}</h3>` : '<h3 class="card-title card-title-placeholder">無題</h3>'}
+        ${titleHtml}
         <div class="card-category">${escapeHtml(getTabNameById(e.tabId) || "—")}</div>
         ${e.tags && e.tags.length ? `<div class="card-tags">${e.tags.map(t => `<span class="card-tag">${escapeHtml(t)}</span>`).join("")}</div>` : ''}
         <div class="card-meta">
@@ -1128,12 +1131,15 @@ function openDetail(id) {
   }
   $("detail-date").textContent = fmtDate(e.createdAt);
 
-  // タイトル
+  // タイトル(ヘッダー部分は色を変えて視認性UP)
   const detailHeaderName = getTitleHeaderNameById(e.titleHeaderId);
-  const detailTitleText = [detailHeaderName, e.title].filter(Boolean).join(" ");
-  if (detailTitleText) {
+  if (detailHeaderName || e.title) {
     $("detail-title").style.display = "block";
-    $("detail-title").textContent = detailTitleText;
+    let html = "";
+    if (detailHeaderName) html += `<span class="title-header">${escapeHtml(detailHeaderName)}</span>`;
+    if (detailHeaderName && e.title) html += " ";
+    if (e.title) html += escapeHtml(e.title);
+    $("detail-title").innerHTML = html;
   } else $("detail-title").style.display = "none";
 
   // サブ画像(新)
