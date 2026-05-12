@@ -448,6 +448,42 @@ main { padding: 32px 40px 80px; }
   font-weight: 700;
   letter-spacing: 0.01em;
 }
+
+/* ヘッダー管理:色見本スウォッチ */
+.head-color-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(0,0,0,0.1);
+  flex-shrink: 0;
+}
+/* 色パレットポップアップ */
+.color-picker-popup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 4px 0;
+}
+.color-picker-popup .color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: transform 0.1s, border-color 0.1s;
+}
+.color-picker-popup .color-swatch:hover {
+  transform: scale(1.15);
+}
+.color-picker-popup .color-swatch.selected {
+  border-color: var(--ink);
+  transform: scale(1.1);
+}
 .card-prompt {
   font-size: 12.5px;
   color: var(--ink-soft);
