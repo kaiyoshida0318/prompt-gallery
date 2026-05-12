@@ -1777,6 +1777,16 @@ function bindEvents() {
     }
   });
 
+  // ロゴクリックでホーム(初期状態:全てタブ + 検索クリア + タグフィルタ解除)へ
+  $("logo-link").addEventListener("click", () => {
+    activeTabId = "_all";
+    activeTag = null;
+    $("search-input").value = "";
+    closeAllModals();
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+
   // 追加ボタン
   $("btn-add").addEventListener("click", () => {
     refreshTabSelectOptions();
