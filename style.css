@@ -62,7 +62,9 @@ input, textarea { font-family: inherit; }
   height: 40px;
   width: auto;
   flex-shrink: 0;
+  transition: opacity 0.15s;
 }
+.logo-full:hover { opacity: 0.7; }
 .logo-title {
   font-family: var(--serif);
   font-size: 24px;
