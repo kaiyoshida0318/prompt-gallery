@@ -330,9 +330,10 @@ function render() {
       ? `<div class="card-img"><img data-path="${escapeHtml(e.image)}" alt="" loading="lazy" /></div>`
       : `<div class="card-text-main"><div class="card-text-main-inner">${escapeHtml(e.mainText || "(本文なし)")}</div></div>`;
     const headerName = getTitleHeaderNameById(e.titleHeaderId);
+    const headerColor = getTitleHeaderColorById(e.titleHeaderId);
     const hasContent = headerName || e.title;
     const titleHtml = hasContent
-      ? `<h3 class="card-title">${headerName ? `<span class="title-header">${escapeHtml(headerName)}</span>` : ''}${headerName && e.title ? ' ' : ''}${e.title ? escapeHtml(e.title) : ''}</h3>`
+      ? `<h3 class="card-title">${headerName ? `<span class="title-header" style="color:${escapeHtml(headerColor)}">${escapeHtml(headerName)}</span>` : ''}${headerName && e.title ? ' ' : ''}${e.title ? escapeHtml(e.title) : ''}</h3>`
       : '<h3 class="card-title card-title-placeholder">無題</h3>';
     return `
     <div class="card" data-id="${e.id}">
@@ -913,6 +914,28 @@ async function addCatDef() {
 }
 
 // ---------- タイトルヘッダー管理 ----------
+// ヘッダー用の色パレット(ブランド調)
+const HEADER_COLORS = [
+  { name: "煉瓦", value: "#c8451c" },
+  { name: "紺", value: "#1f4e8f" },
+  { name: "森", value: "#2f6d4f" },
+  { name: "金茶", value: "#a87432" },
+  { name: "葡萄", value: "#7b3a6c" },
+  { name: "藍", value: "#3a6b8c" },
+  { name: "深緋", value: "#9c2a2a" },
+  { name: "墨", value: "#1b1a17" },
+];
+
+function getDefaultHeaderColor() {
+  return HEADER_COLORS[0].value;
+}
+
+function getTitleHeaderColorById(id) {
+  if (!id) return null;
+  const h = titleHeaders.find((x) => x.id === id);
+  return h ? (h.color || getDefaultHeaderColor()) : null;
+}
+
 function refreshTitleHeaderSelectOptions() {
   const optionsHtml = '<option value="">— ヘッダーなし —</option>' +
     titleHeaders.map((h) => `<option value="${escapeHtml(h.id)}">${escapeHtml(h.name)}</option>`).join("");
@@ -946,14 +969,19 @@ function renderHeaderManager() {
     if (e.titleHeaderId) usageCount[e.titleHeaderId] = (usageCount[e.titleHeaderId] || 0) + 1;
   });
 
-  list.innerHTML = titleHeaders.map((h) => `
+  list.innerHTML = titleHeaders.map((h) => {
+    const color = h.color || getDefaultHeaderColor();
+    return `
     <div class="tag-mgr-item" data-id="${escapeHtml(h.id)}">
-      <span class="tag-mgr-item-name">${escapeHtml(h.name)}</span>
+      <span class="head-color-dot" style="background:${escapeHtml(color)}"></span>
+      <span class="tag-mgr-item-name" style="color:${escapeHtml(color)};font-weight:700">${escapeHtml(h.name)}</span>
       <span class="tag-mgr-item-count">${usageCount[h.id] || 0} 件</span>
+      <button class="tag-mgr-btn" data-action="color" data-id="${escapeHtml(h.id)}">色変更</button>
       <button class="tag-mgr-btn" data-action="rename" data-id="${escapeHtml(h.id)}">名前変更</button>
       <button class="tag-mgr-btn danger" data-action="delete" data-id="${escapeHtml(h.id)}">削除</button>
     </div>
-  `).join("");
+  `;
+  }).join("");
 
   list.querySelectorAll(".tag-mgr-btn").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -961,6 +989,45 @@ function renderHeaderManager() {
       const action = btn.dataset.action;
       if (action === "rename") startRenameHeader(id);
       else if (action === "delete") deleteHeaderDef(id);
+      else if (action === "color") openColorPicker(id, btn);
+    });
+  });
+}
+
+// 色変更ピッカーを開く(該当行の直下に色パレット表示)
+function openColorPicker(headerId, anchorBtn) {
+  const h = titleHeaders.find((x) => x.id === headerId);
+  if (!h) return;
+  const item = anchorBtn.closest(".tag-mgr-item");
+  // 既存のピッカーがあれば閉じる
+  document.querySelectorAll(".color-picker-popup").forEach((p) => p.remove());
+
+  const popup = document.createElement("div");
+  popup.className = "color-picker-popup";
+  const currentColor = h.color || getDefaultHeaderColor();
+  popup.innerHTML = HEADER_COLORS.map((c) => `
+    <div class="color-swatch ${c.value === currentColor ? 'selected' : ''}"
+         style="background:${c.value}"
+         data-color="${c.value}"
+         title="${escapeHtml(c.name)}"></div>
+  `).join("");
+  item.insertAdjacentElement("afterend", popup);
+
+  popup.querySelectorAll(".color-swatch").forEach((sw) => {
+    sw.addEventListener("click", async () => {
+      const newColor = sw.dataset.color;
+      const oldColor = h.color;
+      try {
+        h.color = newColor;
+        popup.remove();
+        await saveData(`Set header color: ${h.name}`);
+        renderHeaderManager();
+        render();
+      } catch (err) {
+        alert("色変更失敗: " + err.message);
+        h.color = oldColor;
+        renderHeaderManager();
+      }
     });
   });
 }
@@ -1039,8 +1106,12 @@ async function addHeaderDef() {
     alert("同じ名前のヘッダーが既にあります");
     return;
   }
+  // 既に使われていない色から自動選択(なければパレット順)
+  const usedColors = new Set(titleHeaders.map((h) => h.color).filter(Boolean));
+  const availableColor = HEADER_COLORS.find((c) => !usedColors.has(c.value));
+  const color = availableColor ? availableColor.value : HEADER_COLORS[titleHeaders.length % HEADER_COLORS.length].value;
   try {
-    titleHeaders.push({ id: "head-" + genId(), name });
+    titleHeaders.push({ id: "head-" + genId(), name, color });
     await saveData(`Add header: ${name}`);
     $("head-mgr-new-name").value = "";
     renderHeaderManager();
@@ -1133,10 +1204,11 @@ function openDetail(id) {
 
   // タイトル(ヘッダー部分は色を変えて視認性UP)
   const detailHeaderName = getTitleHeaderNameById(e.titleHeaderId);
+  const detailHeaderColor = getTitleHeaderColorById(e.titleHeaderId);
   if (detailHeaderName || e.title) {
     $("detail-title").style.display = "block";
     let html = "";
-    if (detailHeaderName) html += `<span class="title-header">${escapeHtml(detailHeaderName)}</span>`;
+    if (detailHeaderName) html += `<span class="title-header" style="color:${escapeHtml(detailHeaderColor)}">${escapeHtml(detailHeaderName)}</span>`;
     if (detailHeaderName && e.title) html += " ";
     if (e.title) html += escapeHtml(e.title);
     $("detail-title").innerHTML = html;
