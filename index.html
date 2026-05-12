@@ -41,14 +41,15 @@
     <img class="logo-full" src="logo-header.png" alt="Prompt Gallery" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.14.4</span>
+    <span class="version-badge">v1.15.0</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
     </div>
     <button id="btn-add" class="btn-add">+ Add</button>
     <button id="btn-cat-mgr" class="btn-secondary btn-header" title="カテゴリの追加・編集・削除">📂 カテゴリ管理</button>
-    <button id="btn-tag-mgr" class="btn-secondary btn-header" title="素材データの追加・編集・削除">🏷️ 素材データ管理</button>
+    <button id="btn-head-mgr" class="btn-secondary btn-header" title="タイトルヘッダーの追加・編集・削除">📑 ヘッダー管理</button>
+    <button id="btn-tag-mgr" class="btn-secondary btn-header" title="素材タグの追加・編集・削除">🏷️ 素材タグ管理</button>
     <button id="btn-settings" class="btn-icon" title="接続設定">⚙</button>
   </div>
 </header>
@@ -119,6 +120,11 @@
       </div>
 
       <div class="form-right">
+        <label class="field-label">タイトルヘッダー</label>
+        <select id="input-title-header-id" class="select-input">
+          <option value="">— ヘッダーなし —</option>
+        </select>
+
         <label class="field-label">タイトル</label>
         <input id="input-title" type="text" placeholder="例: パッケージ案A、サムネ案・横向き(任意)" />
 
@@ -133,7 +139,7 @@
           <button type="button" id="input-tags-toggle" class="tag-picker-toggle">+ 素材データを選ぶ</button>
           <div id="input-tags-popup" class="tag-picker-popup" style="display:none">
             <div id="input-tags-options" class="tag-picker-options"></div>
-            <p class="field-hint" style="margin:8px 0 0">素材データを増やすには右上の <b>🏷️ 素材データ管理</b> ボタンから追加してください。</p>
+            <p class="field-hint" style="margin:8px 0 0">素材データを増やすには右上の <b>🏷️ 素材タグ管理</b> ボタンから追加してください。</p>
           </div>
         </div>
 
@@ -250,6 +256,11 @@
       </div>
 
       <div class="form-right">
+        <label class="field-label">タイトルヘッダー</label>
+        <select id="edit-title-header-id" class="select-input">
+          <option value="">— ヘッダーなし —</option>
+        </select>
+
         <label class="field-label">タイトル</label>
         <input id="edit-title" type="text" placeholder="例: パッケージ案A、サムネ案・横向き(任意)" />
 
@@ -264,7 +275,7 @@
           <button type="button" id="edit-tags-toggle" class="tag-picker-toggle">+ 素材データを選ぶ</button>
           <div id="edit-tags-popup" class="tag-picker-popup" style="display:none">
             <div id="edit-tags-options" class="tag-picker-options"></div>
-            <p class="field-hint" style="margin:8px 0 0">素材データを増やすには右上の <b>🏷️ 素材データ管理</b> ボタンから追加してください。</p>
+            <p class="field-hint" style="margin:8px 0 0">素材データを増やすには右上の <b>🏷️ 素材タグ管理</b> ボタンから追加してください。</p>
           </div>
         </div>
 
@@ -316,11 +327,11 @@
   </div>
 </div>
 
-<!-- ============== 素材データ管理モーダル ============== -->
+<!-- ============== 素材タグ管理モーダル ============== -->
 <div id="tag-mgr-modal" class="modal" style="display:none">
   <div class="modal-inner">
     <button class="modal-close" data-close="tag-mgr-modal">×</button>
-    <h2>素材データ管理</h2>
+    <h2>素材タグ管理</h2>
     <p class="auth-desc" style="margin-bottom:16px">商品編集画面で使える素材データを管理します。</p>
 
     <label class="field-label">新しい素材データを追加</label>
@@ -375,6 +386,28 @@
   </div>
 </div>
 
-<script src="app.js?v=1.14.4"></script>
+<!-- ============== タイトルヘッダー管理モーダル ============== -->
+<div id="head-mgr-modal" class="modal" style="display:none">
+  <div class="modal-inner">
+    <button class="modal-close" data-close="head-mgr-modal">×</button>
+    <h2>タイトルヘッダー管理</h2>
+    <p class="auth-desc" style="margin-bottom:16px">編集画面のタイトル欄の上に表示される「タイトルヘッダー」を管理します。<br />カードに表示されるタイトルは「ヘッダー タイトル」の形式で連結されます。</p>
+
+    <label class="field-label">新しいヘッダーを追加</label>
+    <div style="display:flex; gap:8px">
+      <input id="head-mgr-new-name" type="text" placeholder="例: 【複数案】、【検討中】、【採用】" />
+      <button id="head-mgr-add" class="btn-primary" style="margin:0; flex-shrink:0">追加</button>
+    </div>
+
+    <label class="field-label" style="margin-top:24px">登録済みヘッダー</label>
+    <div id="head-mgr-list" class="tag-mgr-list"></div>
+
+    <div class="modal-actions">
+      <button class="btn-secondary" data-close="head-mgr-modal">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js?v=1.15.0"></script>
 </body>
 </html>
