@@ -12,6 +12,7 @@ let dataSha = null;     // data.json の最新 SHA (更新時に必要)
 let entries = [];       // 全エントリー
 let tabs = [];          // タブ定義 [{id, name, icon}]
 let tagDefs = [];       // タグ定義 [{id, name}]
+let titleHeaders = [];  // タイトルヘッダー定義 [{id, name}]
 let activeTabId = "_all"; // 選択中のタブID ("_all" は全て表示)
 let activeTag = null;   // タグフィルタ
 let currentDetailId = null;
@@ -65,6 +66,7 @@ async function loadData() {
     entries = [];
     tabs = [];
     tagDefs = [];
+    titleHeaders = [];
     dataSha = null;
     return;
   }
@@ -75,6 +77,7 @@ async function loadData() {
     entries = Array.isArray(json.entries) ? json.entries : [];
     tabs = Array.isArray(json.tabs) ? json.tabs : [];
     tagDefs = Array.isArray(json.tagDefs) ? json.tagDefs : [];
+    titleHeaders = Array.isArray(json.titleHeaders) ? json.titleHeaders : [];
 
     // 既存entriesに使われているタグ名で、tagDefsに存在しないものを自動追加
     const definedNames = new Set(tagDefs.map((t) => t.name));
@@ -95,6 +98,7 @@ async function loadData() {
     entries = [];
     tabs = [];
     tagDefs = [];
+    titleHeaders = [];
   }
 }
 
@@ -106,7 +110,7 @@ async function saveData(commitMessage, mergeFn) {
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     const body = {
       message: commitMessage,
-      content: b64encode(JSON.stringify({ entries, tabs, tagDefs }, null, 2)),
+      content: b64encode(JSON.stringify({ entries, tabs, tagDefs, titleHeaders }, null, 2)),
       branch: auth.branch
     };
     if (dataSha) body.sha = dataSha;
@@ -133,6 +137,7 @@ async function saveData(commitMessage, mergeFn) {
       const myEntries = entries.slice();
       const myTabs = tabs.slice();
       const myTagDefs = tagDefs.slice();
+      const myTitleHeaders = titleHeaders.slice();
       // 最新を取得
       await loadData();
       // マージ:mergeFnがあれば呼ぶ。なければ自分の変更を最新にマージ
@@ -153,6 +158,8 @@ async function saveData(commitMessage, mergeFn) {
       tabs = mergedTabs;
       // tagDefsもマージ:自分の変更を優先(削除も尊重)
       tagDefs = myTagDefs;
+      // titleHeadersもマージ:自分の変更を優先
+      titleHeaders = myTitleHeaders;
       continue;
     }
 
@@ -322,11 +329,13 @@ function render() {
     const imgArea = e.image
       ? `<div class="card-img"><img data-path="${escapeHtml(e.image)}" alt="" loading="lazy" /></div>`
       : `<div class="card-text-main"><div class="card-text-main-inner">${escapeHtml(e.mainText || "(本文なし)")}</div></div>`;
+    const headerName = getTitleHeaderNameById(e.titleHeaderId);
+    const titleText = [headerName, e.title].filter(Boolean).join(" ");
     return `
     <div class="card" data-id="${e.id}">
       ${imgArea}
       <div class="card-body">
-        ${e.title ? `<h3 class="card-title">${escapeHtml(e.title)}</h3>` : '<h3 class="card-title card-title-placeholder">無題</h3>'}
+        ${titleText ? `<h3 class="card-title">${escapeHtml(titleText)}</h3>` : '<h3 class="card-title card-title-placeholder">無題</h3>'}
         <div class="card-category">${escapeHtml(getTabNameById(e.tabId) || "—")}</div>
         ${e.tags && e.tags.length ? `<div class="card-tags">${e.tags.map(t => `<span class="card-tag">${escapeHtml(t)}</span>`).join("")}</div>` : ''}
         <div class="card-meta">
@@ -539,7 +548,7 @@ function renderTagPickerSelected(selectedId, tagsArray, popupId, optionsId) {
 function renderTagPickerOptions(optionsId, tagsArray, popupId, selectedId) {
   const opts = $(optionsId);
   if (tagDefs.length === 0) {
-    opts.innerHTML = '<p class="tag-picker-empty">登録された素材データがありません。右上の「🏷️ 素材データ管理」から追加してください。</p>';
+    opts.innerHTML = '<p class="tag-picker-empty">登録された素材データがありません。右上の「🏷️ 素材タグ管理」から追加してください。</p>';
     return;
   }
   // 名前順
@@ -900,6 +909,143 @@ async function addCatDef() {
   }
 }
 
+// ---------- タイトルヘッダー管理 ----------
+function refreshTitleHeaderSelectOptions() {
+  const optionsHtml = '<option value="">— ヘッダーなし —</option>' +
+    titleHeaders.map((h) => `<option value="${escapeHtml(h.id)}">${escapeHtml(h.name)}</option>`).join("");
+  $("input-title-header-id").innerHTML = optionsHtml;
+  $("edit-title-header-id").innerHTML = optionsHtml;
+}
+
+function getTitleHeaderNameById(id) {
+  if (!id) return null;
+  const h = titleHeaders.find((x) => x.id === id);
+  return h ? h.name : null;
+}
+
+function openHeaderManager() {
+  closeAllModals();
+  $("head-mgr-new-name").value = "";
+  renderHeaderManager();
+  $("head-mgr-modal").style.display = "flex";
+  setTimeout(() => $("head-mgr-new-name").focus(), 50);
+}
+
+function renderHeaderManager() {
+  const list = $("head-mgr-list");
+  if (titleHeaders.length === 0) {
+    list.innerHTML = '<div class="tag-mgr-empty">ヘッダーがまだありません。上から追加してください。</div>';
+    return;
+  }
+  // 使用件数
+  const usageCount = {};
+  entries.forEach((e) => {
+    if (e.titleHeaderId) usageCount[e.titleHeaderId] = (usageCount[e.titleHeaderId] || 0) + 1;
+  });
+
+  list.innerHTML = titleHeaders.map((h) => `
+    <div class="tag-mgr-item" data-id="${escapeHtml(h.id)}">
+      <span class="tag-mgr-item-name">${escapeHtml(h.name)}</span>
+      <span class="tag-mgr-item-count">${usageCount[h.id] || 0} 件</span>
+      <button class="tag-mgr-btn" data-action="rename" data-id="${escapeHtml(h.id)}">名前変更</button>
+      <button class="tag-mgr-btn danger" data-action="delete" data-id="${escapeHtml(h.id)}">削除</button>
+    </div>
+  `).join("");
+
+  list.querySelectorAll(".tag-mgr-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.id;
+      const action = btn.dataset.action;
+      if (action === "rename") startRenameHeader(id);
+      else if (action === "delete") deleteHeaderDef(id);
+    });
+  });
+}
+
+function startRenameHeader(headerId) {
+  const h = titleHeaders.find((x) => x.id === headerId);
+  if (!h) return;
+  const item = document.querySelector(`#head-mgr-list .tag-mgr-item[data-id="${CSS.escape(headerId)}"]`);
+  if (!item) return;
+  const oldName = h.name;
+  item.innerHTML = `
+    <input class="tag-mgr-edit-input" type="text" value="${escapeHtml(oldName)}" />
+    <button class="tag-mgr-btn" data-action="confirm">OK</button>
+    <button class="tag-mgr-btn" data-action="cancel">キャンセル</button>
+  `;
+  const input = item.querySelector(".tag-mgr-edit-input");
+  input.focus();
+  input.select();
+  const confirm = async () => {
+    const newName = input.value.trim();
+    if (!newName) { alert("名前を入力してください"); return; }
+    if (newName === oldName) { renderHeaderManager(); return; }
+    if (titleHeaders.some((x) => x.id !== headerId && x.name === newName)) {
+      alert("同じ名前のヘッダーが既にあります");
+      return;
+    }
+    try {
+      h.name = newName;
+      await saveData(`Rename header: ${oldName} -> ${newName}`);
+      renderHeaderManager();
+      render();
+    } catch (err) {
+      alert("変更失敗: " + err.message);
+      h.name = oldName;
+      renderHeaderManager();
+    }
+  };
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); confirm(); }
+    else if (e.key === "Escape") { e.preventDefault(); renderHeaderManager(); }
+  });
+  item.querySelector('[data-action="confirm"]').addEventListener("click", confirm);
+  item.querySelector('[data-action="cancel"]').addEventListener("click", renderHeaderManager);
+}
+
+async function deleteHeaderDef(headerId) {
+  const h = titleHeaders.find((x) => x.id === headerId);
+  if (!h) return;
+  let count = 0;
+  entries.forEach((e) => { if (e.titleHeaderId === headerId) count++; });
+  const msg = count > 0
+    ? `ヘッダー「${h.name}」を削除しますか?\n${count}件の画像から自動的に外されます。`
+    : `ヘッダー「${h.name}」を削除しますか?`;
+  if (!confirm(msg)) return;
+
+  try {
+    titleHeaders = titleHeaders.filter((x) => x.id !== headerId);
+    entries.forEach((e) => {
+      if (e.titleHeaderId === headerId) delete e.titleHeaderId;
+    });
+    await saveData(`Delete header: ${h.name}`);
+    renderHeaderManager();
+    render();
+  } catch (err) {
+    alert("削除失敗: " + err.message);
+  }
+}
+
+async function addHeaderDef() {
+  const name = $("head-mgr-new-name").value.trim();
+  if (!name) {
+    alert("ヘッダー名を入力してください");
+    return;
+  }
+  if (titleHeaders.some((x) => x.name === name)) {
+    alert("同じ名前のヘッダーが既にあります");
+    return;
+  }
+  try {
+    titleHeaders.push({ id: "head-" + genId(), name });
+    await saveData(`Add header: ${name}`);
+    $("head-mgr-new-name").value = "";
+    renderHeaderManager();
+  } catch (err) {
+    alert("追加失敗: " + err.message);
+  }
+}
+
 function renderTagFilters() {
   const allTags = new Set();
   entries.forEach((e) => (e.tags || []).forEach((t) => allTags.add(t)));
@@ -958,7 +1104,7 @@ function handleEditMaterialFiles(files) {
 
 // ---------- 詳細モーダル ----------
 function closeAllModals() {
-  ["add-modal", "edit-modal", "detail-modal", "tab-edit-modal", "tag-mgr-modal", "cat-mgr-modal"].forEach((id) => {
+  ["add-modal", "edit-modal", "detail-modal", "tab-edit-modal", "tag-mgr-modal", "cat-mgr-modal", "head-mgr-modal"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
@@ -983,9 +1129,11 @@ function openDetail(id) {
   $("detail-date").textContent = fmtDate(e.createdAt);
 
   // タイトル
-  if (e.title) {
+  const detailHeaderName = getTitleHeaderNameById(e.titleHeaderId);
+  const detailTitleText = [detailHeaderName, e.title].filter(Boolean).join(" ");
+  if (detailTitleText) {
     $("detail-title").style.display = "block";
-    $("detail-title").textContent = e.title;
+    $("detail-title").textContent = detailTitleText;
   } else $("detail-title").style.display = "none";
 
   // サブ画像(新)
@@ -1092,6 +1240,7 @@ function openEdit() {
   const e = entries.find((x) => x.id === currentDetailId);
   if (!e) return;
   refreshTabSelectOptions();
+  refreshTitleHeaderSelectOptions();
   // プレビュー画像(詳細モーダルのimgを流用して即時表示)
   $("edit-preview-img").src = "";
   loadImageInto($("edit-preview-img"), e.image);
@@ -1099,6 +1248,7 @@ function openEdit() {
   $("edit-prompt").value = e.prompt || "";
   $("edit-main-text").value = e.mainText || "";
   $("edit-title").value = e.title || "";
+  $("edit-title-header-id").value = e.titleHeaderId || "";
   $("edit-tab-id").value = e.tabId || "";
   // 配列の参照を維持しつつ内容だけ更新(setupTagPickerが起動時の参照を使い続けるため)
   editTags.length = 0;
@@ -1270,6 +1420,7 @@ async function updateEntry() {
       prompt,
       mainText: $("edit-main-text").value.trim() || undefined,
       title: $("edit-title").value.trim() || undefined,
+      titleHeaderId: $("edit-title-header-id").value || undefined,
       tabId: $("edit-tab-id").value || undefined,
       tags: editTags.length ? editTags.slice() : undefined,
       subImages: finalSubImages.length ? finalSubImages : undefined,
@@ -1318,6 +1469,7 @@ function resetAddForm() {
   $("input-prompt").value = "";
   $("input-main-text").value = "";
   $("input-title").value = "";
+  $("input-title-header-id").value = "";
   inputTags.length = 0;
   renderTagPickerSelected("input-tags-selected", inputTags, "input-tags-popup", "input-tags-options");
   $("input-tags-popup").style.display = "none";
@@ -1467,6 +1619,7 @@ async function saveEntry() {
       subImages: subImagePaths.length ? subImagePaths : undefined,
       materialImages: materialImagePaths.length ? materialImagePaths : undefined,
       tabId: $("input-tab-id").value || undefined,
+      titleHeaderId: $("input-title-header-id").value || undefined,
       title: $("input-title").value.trim() || undefined,
       tags: inputTags.length ? inputTags.slice() : undefined,
       prompt,
@@ -1549,7 +1702,8 @@ function bindEvents() {
   // 追加ボタン
   $("btn-add").addEventListener("click", () => {
     refreshTabSelectOptions();
-      resetAddForm();
+    refreshTitleHeaderSelectOptions();
+    resetAddForm();
     $("add-modal").style.display = "flex";
   });
 
@@ -1591,6 +1745,13 @@ function bindEvents() {
     chip.addEventListener("click", () => {
       $("cat-mgr-new-icon").value = chip.dataset.catIcon;
     });
+  });
+
+  // タイトルヘッダー管理
+  $("btn-head-mgr").addEventListener("click", openHeaderManager);
+  $("head-mgr-add").addEventListener("click", addHeaderDef);
+  $("head-mgr-new-name").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); addHeaderDef(); }
   });
 
   // モーダル閉じる(×ボタン or キャンセルボタンのみ。背景クリックでは閉じない)
