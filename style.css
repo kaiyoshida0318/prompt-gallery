@@ -133,6 +133,9 @@ input, textarea { font-family: inherit; }
   background: var(--bg);
   overflow-x: auto;
   scrollbar-width: thin;
+  position: sticky;
+  top: 92px;
+  z-index: 49;
 }
 .tab-list {
   display: flex;
@@ -280,6 +283,10 @@ input, textarea { font-family: inherit; }
   align-items: center;
   flex-wrap: wrap;
   border-bottom: 1px solid var(--line);
+  background: var(--bg);
+  position: sticky;
+  top: 125px;
+  z-index: 48;
 }
 .search-wrap {
   flex: 1;
@@ -1306,9 +1313,9 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
 @media (max-width: 720px) {
   .site-header { padding: 20px; }
   .logo-full { height: 32px; }
-  .tab-bar { padding: 0 16px; }
+  .tab-bar { padding: 0 16px; top: 76px; }
   .tab-item { padding: 10px 12px 9px; font-size: 12px; }
-  .toolbar { padding: 16px 20px; }
+  .toolbar { padding: 16px 20px; top: 108px; }
   main { padding: 20px; }
   .gallery { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
   .modal-inner { padding: 24px 20px; }
