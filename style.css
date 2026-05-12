@@ -441,6 +441,13 @@ main { padding: 32px 40px 80px; }
   font-style: italic;
   font-weight: 400;
 }
+
+/* タイトルヘッダー(一覧&詳細共通) - ブランドの煉瓦色で目立たせる */
+.title-header {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
 .card-prompt {
   font-size: 12.5px;
   color: var(--ink-soft);
