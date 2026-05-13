@@ -391,19 +391,28 @@ function render() {
 // ---------- ビュー切り替えバー(ギャラリー/マインドマップ) ----------
 function renderViewBar() {
   const viewList = $("view-list");
-  const mmsHtml = mindmaps.map((m) => `
-    <div class="view-item ${activeViewId === m.id ? 'active' : ''}" data-view-id="${escapeHtml(m.id)}">
+  const mmsHtml = mindmaps.map((m, i) => {
+    const isActive = activeViewId === m.id;
+    return `
+    <div class="view-item ${isActive ? 'active' : ''}" data-view-id="${escapeHtml(m.id)}">
       <span class="view-item-icon">🗺️</span>
       <span>${escapeHtml(m.name)}</span>
+      <span class="view-item-actions">
+        ${i > 0 ? `<button class="tab-mini-btn" data-action="left" data-mm-id="${escapeHtml(m.id)}" title="左へ移動">◀</button>` : ''}
+        ${i < mindmaps.length - 1 ? `<button class="tab-mini-btn" data-action="right" data-mm-id="${escapeHtml(m.id)}" title="右へ移動">▶</button>` : ''}
+      </span>
     </div>
-  `).join("");
+  `;
+  }).join("");
   // マインドマップが0個のときは案内、それ以外は一覧
   viewList.innerHTML = mindmaps.length === 0
     ? '<div class="view-item-empty">マインドマップ未作成 — 右の「+」から追加</div>'
     : mmsHtml;
 
   viewList.querySelectorAll(".view-item").forEach((el) => {
-    el.addEventListener("click", () => {
+    el.addEventListener("click", (e) => {
+      // ミニボタン(並び替え)のクリックは別処理
+      if (e.target.closest(".tab-mini-btn")) return;
       const target = el.dataset.viewId;
       if (target === activeViewId) return;
       // マインドマップから離れる場合は未保存チェック
@@ -413,6 +422,33 @@ function renderViewBar() {
       render();
     });
   });
+
+  // ミニボタン(並び替え)
+  viewList.querySelectorAll(".tab-mini-btn").forEach((btn) => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const action = btn.dataset.action;
+      const mmId = btn.dataset.mmId;
+      if (action === "left") moveMindmap(mmId, -1);
+      else if (action === "right") moveMindmap(mmId, 1);
+    });
+  });
+}
+
+// マインドマップの並び替え
+async function moveMindmap(mmId, delta) {
+  const idx = mindmaps.findIndex((m) => m.id === mmId);
+  if (idx === -1) return;
+  const newIdx = idx + delta;
+  if (newIdx < 0 || newIdx >= mindmaps.length) return;
+  const [item] = mindmaps.splice(idx, 1);
+  mindmaps.splice(newIdx, 0, item);
+  try {
+    await saveData(`Reorder mindmap: ${item.name}`);
+    renderViewBar();
+  } catch (err) {
+    alert("並び替え失敗: " + err.message);
+  }
 }
 
 // ---------- マインドマップ操作 ----------
