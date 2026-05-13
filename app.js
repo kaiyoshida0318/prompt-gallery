@@ -782,6 +782,15 @@ function startInlineEdit(nodeId) {
       // タイトル表示を更新
       $("mindmap-title").textContent = mm.name;
     }
+    // 編集を確定したら、選択ノードの行にフォーカスを戻す(キーボード操作を継続できるように)
+    const row = $("mindmap-canvas").querySelector(`.mm-node-row[data-id="${CSS.escape(nodeId)}"]`);
+    if (row) {
+      // すべての選択クラスをクリアして、このノードを選択中にする
+      $("mindmap-canvas").querySelectorAll(".mm-node-row.selected").forEach((r) => r.classList.remove("selected"));
+      row.classList.add("selected");
+      selectedNodeId = nodeId;
+      row.focus({ preventScroll: true });
+    }
     // 次のアクション:兄弟 or 子ノード追加 → 連続入力可能に
     if (nextAction === "sibling") {
       // ルートに兄弟は作れない → 子にフォールバック
