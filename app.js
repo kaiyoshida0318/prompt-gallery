@@ -450,14 +450,38 @@ function renderMindmap() {
   // 保存ボタンの状態を反映
   updateMmSaveButton();
   const canvas = $("mindmap-canvas");
+  // 初回表示かどうかを判定(マップが切り替わった or 初回)
+  const isFirstRender = canvas.dataset.currentMmId !== mm.id;
+  canvas.dataset.currentMmId = mm.id;
   // mm-treeコンテナとSVGレイヤーを構築
   canvas.innerHTML = `
     <svg class="mm-svg" xmlns="http://www.w3.org/2000/svg"></svg>
     <div class="mm-tree">${renderMmNode(mm.root, 0, true)}</div>
   `;
   attachMindmapEvents(canvas, mm);
-  // レイアウト確定後にコネクター描画
-  requestAnimationFrame(() => drawConnectors(mm, canvas));
+  // レイアウト確定後にコネクター描画 + 初回ならルートを左中央へ
+  requestAnimationFrame(() => {
+    drawConnectors(mm, canvas);
+    if (isFirstRender) centerRootInCanvas(canvas, mm);
+  });
+}
+
+// ルートノードをキャンバスの左中央あたりに配置(スクロール調整)
+function centerRootInCanvas(canvas, mm) {
+  const rootRow = canvas.querySelector(`.mm-node[data-id="${CSS.escape(mm.root.id)}"] > .mm-node-row`);
+  if (!rootRow) return;
+  const canvasRect = canvas.getBoundingClientRect();
+  const rootRect = rootRow.getBoundingClientRect();
+  // ルートの中央 y 座標(canvas相対)
+  const rootCenterY = rootRect.top - canvasRect.top + canvas.scrollTop + rootRect.height / 2;
+  // キャンバス中央 y にルート中央が来るようなscrollTop
+  const targetScrollTop = rootCenterY - canvas.clientHeight / 2;
+  // ルートは左に置きたいので scrollLeft は 0
+  canvas.scrollTo({
+    top: Math.max(0, targetScrollTop),
+    left: 0,
+    behavior: "auto"
+  });
 }
 
 // ローカル変更を「未保存」扱いにする
