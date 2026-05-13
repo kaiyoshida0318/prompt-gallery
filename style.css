@@ -780,37 +780,6 @@ main { padding: 32px 40px 80px; }
   cursor: text;
 }
 
-/* アクションボタン群(ノード選択時のみ) */
-.mm-node-actions {
-  display: none;
-  align-items: center;
-  gap: 2px;
-  margin-left: 4px;
-}
-.mm-node-row.selected .mm-node-actions { display: inline-flex; }
-.mm-node-btn {
-  width: 20px;
-  height: 20px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  border-radius: 3px;
-  cursor: pointer;
-  color: var(--ink-soft);
-  background: rgba(0,0,0,0.04);
-}
-.mm-node-btn:hover { background: var(--ink); color: var(--bg); }
-.mm-node-btn.danger:hover { background: var(--danger); }
-.mm-link-badge {
-  font-size: 10px;
-  padding: 1px 5px;
-  background: var(--accent-soft);
-  color: var(--accent);
-  border-radius: 999px;
-  font-family: var(--mono);
-  margin-left: 2px;
-}
 .mm-empty {
   text-align: center;
   padding: 60px 20px;
