@@ -579,9 +579,10 @@ function drawConnectors(mm, canvas) {
 
 // 編集中フラグ
 let editingNodeId = null;
+let multiSelectedIds = new Set(); // ドラッグで複数選択中のノードID
 
 function attachMindmapEvents(canvas, mm) {
-  // 行クリック=選択
+  // 行クリック=選択(複数選択もクリア)
   canvas.querySelectorAll(".mm-node-row").forEach((row) => {
     row.addEventListener("click", (e) => {
       if (e.target.closest(".mm-toggle")) return;
@@ -589,6 +590,8 @@ function attachMindmapEvents(canvas, mm) {
       if (e.target.matches('.mm-node-text[contenteditable="true"]')) return;
       const id = row.dataset.id;
       selectedNodeId = id;
+      // 複数選択クリア
+      clearMultiSelection(canvas);
       // 選択状態の表示更新(再描画は重いので最低限のクラス更新だけ)
       canvas.querySelectorAll(".mm-node-row.selected").forEach((r) => r.classList.remove("selected"));
       row.classList.add("selected");
@@ -616,12 +619,24 @@ function attachMindmapEvents(canvas, mm) {
     });
   });
 
+  // 矩形ドラッグ選択(空エリアからのみ開始可能)
+  if (!canvas._mmDragAttached) {
+    canvas._mmDragAttached = true;
+    attachDragSelection(canvas);
+  }
+
   // キーボードイベント(canvas全体)
   canvas.tabIndex = 0;
   if (!canvas._mmKeydownAttached) {
     canvas._mmKeydownAttached = true;
     canvas.addEventListener("keydown", (e) => {
       if (editingNodeId) return; // インライン編集中はそちらに任せる
+      // 複数選択中の一括削除
+      if (multiSelectedIds.size > 0 && e.key === "Delete") {
+        e.preventDefault();
+        deleteMultiSelected();
+        return;
+      }
       if (!selectedNodeId) return;
       const mmCur = getActiveMindmap();
       if (!mmCur) return;
@@ -649,9 +664,126 @@ function attachMindmapEvents(canvas, mm) {
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         moveSelectionTo(mmCur, "up");
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        clearMultiSelection(canvas);
       }
     });
   }
+}
+
+// 複数選択クリア
+function clearMultiSelection(canvas) {
+  if (multiSelectedIds.size === 0) return;
+  multiSelectedIds.clear();
+  canvas.querySelectorAll(".mm-node-row.multi-selected").forEach((r) => r.classList.remove("multi-selected"));
+}
+
+// 矩形ドラッグ選択
+function attachDragSelection(canvas) {
+  let dragStart = null; // {x, y}
+  let selectionBox = null;
+
+  canvas.addEventListener("mousedown", (e) => {
+    if (e.button !== 0) return; // 左クリックのみ
+    // ノードや背景以外(ボタン等)からは開始しない
+    if (e.target.closest(".mm-node-row") || e.target.closest(".mm-toggle")) return;
+    // SVG上もOK(背景扱い)
+    const canvasRect = canvas.getBoundingClientRect();
+    dragStart = {
+      x: e.clientX - canvasRect.left + canvas.scrollLeft,
+      y: e.clientY - canvasRect.top + canvas.scrollTop
+    };
+    // 既存の複数選択をクリア
+    clearMultiSelection(canvas);
+    // 単一選択も解除
+    canvas.querySelectorAll(".mm-node-row.selected").forEach((r) => r.classList.remove("selected"));
+    selectedNodeId = null;
+    e.preventDefault();
+  });
+
+  canvas.addEventListener("mousemove", (e) => {
+    if (!dragStart) return;
+    const canvasRect = canvas.getBoundingClientRect();
+    const curX = e.clientX - canvasRect.left + canvas.scrollLeft;
+    const curY = e.clientY - canvasRect.top + canvas.scrollTop;
+    const x = Math.min(dragStart.x, curX);
+    const y = Math.min(dragStart.y, curY);
+    const w = Math.abs(curX - dragStart.x);
+    const h = Math.abs(curY - dragStart.y);
+    // 5px以下のドラッグは無視(誤クリック対策)
+    if (w < 5 && h < 5) return;
+
+    if (!selectionBox) {
+      selectionBox = document.createElement("div");
+      selectionBox.className = "mm-selection-box";
+      canvas.appendChild(selectionBox);
+    }
+    selectionBox.style.left = x + "px";
+    selectionBox.style.top = y + "px";
+    selectionBox.style.width = w + "px";
+    selectionBox.style.height = h + "px";
+
+    // 範囲内のノードをハイライト
+    const rect = { left: x, top: y, right: x + w, bottom: y + h };
+    canvas.querySelectorAll(".mm-node-row").forEach((row) => {
+      const rBox = row.getBoundingClientRect();
+      const rLeft = rBox.left - canvasRect.left + canvas.scrollLeft;
+      const rTop = rBox.top - canvasRect.top + canvas.scrollTop;
+      const rRight = rLeft + rBox.width;
+      const rBottom = rTop + rBox.height;
+      // 矩形が交差してるか
+      const intersect = !(rect.right < rLeft || rect.left > rRight || rect.bottom < rTop || rect.top > rBottom);
+      if (intersect) {
+        row.classList.add("multi-selected");
+        multiSelectedIds.add(row.dataset.id);
+      } else {
+        row.classList.remove("multi-selected");
+        multiSelectedIds.delete(row.dataset.id);
+      }
+    });
+  });
+
+  const endDrag = () => {
+    if (!dragStart) return;
+    dragStart = null;
+    if (selectionBox) {
+      selectionBox.remove();
+      selectionBox = null;
+    }
+    // canvas にフォーカスを戻して Delete キーを受け取れるように
+    if (multiSelectedIds.size > 0) {
+      canvas.focus();
+    }
+  };
+  canvas.addEventListener("mouseup", endDrag);
+  canvas.addEventListener("mouseleave", endDrag);
+}
+
+// 複数選択ノードの一括削除
+function deleteMultiSelected() {
+  const mm = getActiveMindmap();
+  if (!mm) return;
+  if (multiSelectedIds.size === 0) return;
+  // ルートを除外
+  const targets = [...multiSelectedIds].filter((id) => id !== mm.root.id);
+  if (targets.length === 0) {
+    alert("ルートノードは削除できません");
+    multiSelectedIds.clear();
+    renderMindmap();
+    return;
+  }
+  // 各ノードを親から削除(子孫も自動で消える)
+  for (const id of targets) {
+    const found = findMmNodeWithParent(mm.root, id);
+    if (found && found.parent) {
+      found.parent.children = found.parent.children.filter((c) => c.id !== id);
+    }
+  }
+  multiSelectedIds.clear();
+  selectedNodeId = null;
+  markMmDirty();
+  renderMindmap();
 }
 
 // 矢印キーでノード選択を移動
@@ -858,7 +990,6 @@ function deleteMmNode(nodeId) {
   if (!mm) return;
   const found = findMmNodeWithParent(mm.root, nodeId);
   if (!found || !found.parent) return; // ルートは削除不可
-  if (!confirm("このノード(と子孫すべて)を削除しますか?")) return;
   found.parent.children = found.parent.children.filter((c) => c.id !== nodeId);
   selectedNodeId = null;
   markMmDirty();
