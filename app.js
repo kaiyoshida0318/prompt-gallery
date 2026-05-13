@@ -391,19 +391,16 @@ function render() {
 // ---------- ビュー切り替えバー(ギャラリー/マインドマップ) ----------
 function renderViewBar() {
   const viewList = $("view-list");
-  const galleryBtn = `
-    <div class="view-item ${activeViewId === '_gallery' ? 'active' : ''}" data-view-id="_gallery">
-      <span class="view-item-icon">📋</span>
-      <span>ギャラリー</span>
-    </div>
-  `;
   const mmsHtml = mindmaps.map((m) => `
     <div class="view-item ${activeViewId === m.id ? 'active' : ''}" data-view-id="${escapeHtml(m.id)}">
       <span class="view-item-icon">🗺️</span>
       <span>${escapeHtml(m.name)}</span>
     </div>
   `).join("");
-  viewList.innerHTML = galleryBtn + mmsHtml;
+  // マインドマップが0個のときは案内、それ以外は一覧
+  viewList.innerHTML = mindmaps.length === 0
+    ? '<div class="view-item-empty">マインドマップ未作成 — 右の「+」から追加</div>'
+    : mmsHtml;
 
   viewList.querySelectorAll(".view-item").forEach((el) => {
     el.addEventListener("click", () => {
@@ -1032,12 +1029,12 @@ function renderTabBar() {
   for (const e of entries) {
     if (e.tabId) counts[e.tabId] = (counts[e.tabId] || 0) + 1;
   }
-  // 「全て」+ 各タブ
-  // 「全て」タブにマーカークラスを付与(視覚的に区別)
+  // 「全体」+ 各タブ
+  // 「全体」タブにマーカークラスを付与(視覚的に区別)
   const allBtn = `
     <div class="tab-item tab-item-all ${activeTabId === '_all' ? 'active' : ''}" data-tab-id="_all">
       <span class="tab-item-icon">📚</span>
-      <span class="tab-item-name">全て</span>
+      <span class="tab-item-name">全体</span>
       <span class="tab-item-count">${counts._all || 0}</span>
     </div>
   `;
@@ -1056,13 +1053,17 @@ function renderTabBar() {
     </div>
   `;
   }).join("");
-  tabList.innerHTML = tabsHtml + allBtn;
+  // 「全体」を左端、各カテゴリを右
+  tabList.innerHTML = allBtn + tabsHtml;
 
   // タブクリックで切り替え
   tabList.querySelectorAll(".tab-item").forEach((el) => {
     el.addEventListener("click", (e) => {
       // ミニボタンのクリックは別処理
       if (e.target.closest(".tab-mini-btn")) return;
+      // マインドマップから抜ける場合は未保存チェック
+      if (activeViewId !== "_gallery" && !confirmDiscardMmChanges()) return;
+      activeViewId = "_gallery";
       activeTabId = el.dataset.tabId;
       render();
     });
