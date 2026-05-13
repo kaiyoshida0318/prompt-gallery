@@ -16,6 +16,7 @@ let titleHeaders = [];  // タイトルヘッダー定義 [{id, name}]
 let mindmaps = [];      // マインドマップ [{id, name, root}]
 let activeViewId = "_gallery"; // "_gallery" or mindmap.id
 let selectedNodeId = null; // 編集中の選択ノード
+let mmDirty = false;       // マインドマップに未保存の変更があるか
 let activeTabId = "_all"; // 選択中のタブID ("_all" は全て表示)
 let activeTag = null;   // タグフィルタ
 let currentDetailId = null;
@@ -406,7 +407,11 @@ function renderViewBar() {
 
   viewList.querySelectorAll(".view-item").forEach((el) => {
     el.addEventListener("click", () => {
-      activeViewId = el.dataset.viewId;
+      const target = el.dataset.viewId;
+      if (target === activeViewId) return;
+      // マインドマップから離れる場合は未保存チェック
+      if (activeViewId !== "_gallery" && !confirmDiscardMmChanges()) return;
+      activeViewId = target;
       selectedNodeId = null;
       render();
     });
@@ -415,6 +420,8 @@ function renderViewBar() {
 
 // ---------- マインドマップ操作 ----------
 function makeNewMindmap() {
+  // マインドマップ表示中で未保存なら確認
+  if (activeViewId !== "_gallery" && !confirmDiscardMmChanges()) return;
   const name = prompt("新しいマインドマップの名前を入力", "新しいマップ");
   if (!name || !name.trim()) return;
   const trimmed = name.trim();
@@ -430,6 +437,7 @@ function makeNewMindmap() {
   mindmaps.push(newMm);
   saveData(`Add mindmap: ${trimmed}`).then(() => {
     activeViewId = newMm.id;
+    mmDirty = false;
     render();
   }).catch((err) => alert("作成失敗: " + err.message));
 }
@@ -442,6 +450,8 @@ function renderMindmap() {
   const mm = getActiveMindmap();
   if (!mm) return;
   $("mindmap-title").textContent = mm.name;
+  // 保存ボタンの状態を反映
+  updateMmSaveButton();
   const canvas = $("mindmap-canvas");
   // mm-treeコンテナとSVGレイヤーを構築
   canvas.innerHTML = `
@@ -451,6 +461,56 @@ function renderMindmap() {
   attachMindmapEvents(canvas, mm);
   // レイアウト確定後にコネクター描画
   requestAnimationFrame(() => drawConnectors(mm, canvas));
+}
+
+// ローカル変更を「未保存」扱いにする
+function markMmDirty() {
+  mmDirty = true;
+  updateMmSaveButton();
+}
+
+function updateMmSaveButton() {
+  const btn = $("btn-mindmap-save");
+  if (!btn) return;
+  if (mmDirty) {
+    btn.classList.add("btn-primary");
+    btn.classList.remove("tag-mgr-btn");
+    btn.textContent = "💾 保存(未保存あり)";
+    btn.disabled = false;
+  } else {
+    btn.classList.remove("btn-primary");
+    btn.classList.add("tag-mgr-btn");
+    btn.textContent = "💾 保存済み";
+    btn.disabled = true;
+  }
+}
+
+// マインドマップを保存(明示的に押された時のみ)
+async function saveMindmapChanges() {
+  if (!mmDirty) return;
+  const btn = $("btn-mindmap-save");
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "保存中…";
+  try {
+    await saveData(`Update mindmap`);
+    mmDirty = false;
+    updateMmSaveButton();
+  } catch (err) {
+    alert("保存失敗: " + err.message);
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+// 「未保存変更あり」状態でビュー切り替え時の確認
+function confirmDiscardMmChanges() {
+  if (!mmDirty) return true;
+  if (confirm("未保存の変更があります。破棄して移動しますか?\n(キャンセルすると現在の画面に留まります)")) {
+    mmDirty = false;
+    return true;
+  }
+  return false;
 }
 
 function renderMmNode(node, depth, isRoot) {
@@ -613,8 +673,8 @@ function attachMindmapEvents(canvas, mm) {
   }
 }
 
-// 兄弟ノード追加(Enter)
-async function addMmSibling(nodeId) {
+// 兄弟ノード追加(Enter) - ローカル更新のみ、保存は明示ボタンで
+function addMmSibling(nodeId) {
   const mm = getActiveMindmap();
   if (!mm) return;
   const found = findMmNodeWithParent(mm.root, nodeId);
@@ -626,15 +686,11 @@ async function addMmSibling(nodeId) {
   const newNode = { id: "n-" + genId(), text: "新ノード", children: [] };
   const idx = found.parent.children.findIndex((c) => c.id === nodeId);
   found.parent.children.splice(idx + 1, 0, newNode);
-  try {
-    await saveData(`Add mindmap sibling`);
-    selectedNodeId = newNode.id;
-    renderMindmap();
-    // 追加後すぐに編集モード
-    setTimeout(() => startInlineEdit(newNode.id), 50);
-  } catch (err) {
-    alert("追加失敗: " + err.message);
-  }
+  selectedNodeId = newNode.id;
+  markMmDirty();
+  renderMindmap();
+  // 追加後すぐに編集モード(同期的に呼ぶ → 描画完了を待つだけ)
+  requestAnimationFrame(() => startInlineEdit(newNode.id));
 }
 
 // インライン編集(contenteditableで)
@@ -656,23 +712,22 @@ function startInlineEdit(nodeId) {
   sel.addRange(range);
 
   const oldText = node.text || "";
-  const commit = async (cancel) => {
+  const commit = (cancel) => {
     if (editingNodeId !== nodeId) return;
     editingNodeId = null;
     txt.removeAttribute("contenteditable");
     const newText = (cancel ? oldText : txt.textContent.trim()) || oldText;
     txt.textContent = newText;
     if (cancel || newText === oldText) return;
-    try {
-      node.text = newText;
-      if (node.id === mm.root.id) mm.name = newText;
-      await saveData(`Rename mindmap node`);
-      render();
-    } catch (err) {
-      alert("変更失敗: " + err.message);
-      node.text = oldText;
-      renderMindmap();
-    }
+    node.text = newText;
+    if (node.id === mm.root.id) mm.name = newText;
+    markMmDirty();
+    // ビューバー(マップ名表示)も更新する必要がある場合のみrenderViewBar
+    if (node.id === mm.root.id) renderViewBar();
+    // タイトル表示を更新
+    $("mindmap-title").textContent = mm.name;
+    // コネクター再描画(テキスト幅が変わった可能性)
+    requestAnimationFrame(() => drawConnectors(mm, $("mindmap-canvas")));
   };
   txt.addEventListener("blur", () => commit(false), { once: true });
   txt.addEventListener("keydown", (e) => {
@@ -704,7 +759,7 @@ function findMmNodeWithParent(node, id, parent) {
   return null;
 }
 
-async function addMmChild(parentId) {
+function addMmChild(parentId) {
   const mm = getActiveMindmap();
   if (!mm) return;
   const parent = findMmNode(mm.root, parentId);
@@ -713,34 +768,26 @@ async function addMmChild(parentId) {
   const newNode = { id: "n-" + genId(), text: "新ノード", children: [] };
   parent.children.push(newNode);
   parent._collapsed = false;
-  try {
-    await saveData(`Add mindmap node`);
-    selectedNodeId = newNode.id;
-    renderMindmap();
-    // 追加後すぐにインライン編集モード
-    setTimeout(() => startInlineEdit(newNode.id), 50);
-  } catch (err) {
-    alert("追加失敗: " + err.message);
-  }
+  selectedNodeId = newNode.id;
+  markMmDirty();
+  renderMindmap();
+  // 追加後すぐにインライン編集モード
+  requestAnimationFrame(() => startInlineEdit(newNode.id));
 }
 
-async function deleteMmNode(nodeId) {
+function deleteMmNode(nodeId) {
   const mm = getActiveMindmap();
   if (!mm) return;
   const found = findMmNodeWithParent(mm.root, nodeId);
   if (!found || !found.parent) return; // ルートは削除不可
   if (!confirm("このノード(と子孫すべて)を削除しますか?")) return;
   found.parent.children = found.parent.children.filter((c) => c.id !== nodeId);
-  try {
-    await saveData(`Delete mindmap node`);
-    selectedNodeId = null;
-    renderMindmap();
-  } catch (err) {
-    alert("削除失敗: " + err.message);
-  }
+  selectedNodeId = null;
+  markMmDirty();
+  renderMindmap();
 }
 
-async function linkMmNode(nodeId) {
+function linkMmNode(nodeId) {
   const mm = getActiveMindmap();
   if (!mm) return;
   const node = findMmNode(mm.root, nodeId);
@@ -755,29 +802,21 @@ async function linkMmNode(nodeId) {
   }
   if (trimmed) node.entryId = trimmed;
   else delete node.entryId;
-  try {
-    await saveData(`Link mindmap node`);
-    renderMindmap();
-  } catch (err) {
-    alert("変更失敗: " + err.message);
-  }
+  markMmDirty();
+  renderMindmap();
 }
 
-async function renameMindmap() {
+function renameMindmap() {
   const mm = getActiveMindmap();
   if (!mm) return;
   const name = prompt("マインドマップの名前を入力", mm.name);
   if (!name || !name.trim() || name.trim() === mm.name) return;
   const trimmed = name.trim();
-  try {
-    mm.name = trimmed;
-    // ルートテキストも同期
-    if (mm.root) mm.root.text = trimmed;
-    await saveData(`Rename mindmap: ${trimmed}`);
-    render();
-  } catch (err) {
-    alert("変更失敗: " + err.message);
-  }
+  mm.name = trimmed;
+  // ルートテキストも同期
+  if (mm.root) mm.root.text = trimmed;
+  markMmDirty();
+  render();
 }
 
 async function deleteMindmap() {
@@ -785,8 +824,10 @@ async function deleteMindmap() {
   if (!mm) return;
   if (!confirm(`マインドマップ「${mm.name}」を削除しますか?\n(中のノードもすべて削除されます)`)) return;
   mindmaps = mindmaps.filter((m) => m.id !== mm.id);
+  // 削除は即保存(他に未保存があってもまとめて保存される)
   try {
     await saveData(`Delete mindmap: ${mm.name}`);
+    mmDirty = false;
     activeViewId = "_gallery";
     render();
   } catch (err) {
@@ -2211,6 +2252,7 @@ function bindEvents() {
 
   // ロゴクリックでホーム(初期状態:全てタブ + 検索クリア + タグフィルタ解除)へ
   $("logo-link").addEventListener("click", () => {
+    if (activeViewId !== "_gallery" && !confirmDiscardMmChanges()) return;
     activeViewId = "_gallery";
     activeTabId = "_all";
     activeTag = null;
@@ -2224,6 +2266,17 @@ function bindEvents() {
   $("btn-add-mindmap").addEventListener("click", makeNewMindmap);
   $("btn-mindmap-rename").addEventListener("click", renameMindmap);
   $("btn-mindmap-delete").addEventListener("click", deleteMindmap);
+  $("btn-mindmap-save").addEventListener("click", saveMindmapChanges);
+
+  // Ctrl+S(またはCmd+S)で保存
+  document.addEventListener("keydown", (e) => {
+    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      if (activeViewId !== "_gallery" && mmDirty) {
+        e.preventDefault();
+        saveMindmapChanges();
+      }
+    }
+  });
 
   // 追加ボタン
   $("btn-add").addEventListener("click", () => {
@@ -2388,6 +2441,15 @@ function bindEvents() {
 
   // 画面外ドラッグ防止
   window.addEventListener("dragover", (e) => e.preventDefault());
+
+  // ページ離脱時に未保存マインドマップ変更を警告
+  window.addEventListener("beforeunload", (e) => {
+    if (mmDirty) {
+      e.preventDefault();
+      e.returnValue = "";
+      return "";
+    }
+  });
   window.addEventListener("drop", (e) => e.preventDefault());
 }
 
