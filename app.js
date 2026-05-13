@@ -515,8 +515,6 @@ function confirmDiscardMmChanges() {
 
 function renderMmNode(node, depth, isRoot) {
   const isSelected = selectedNodeId === node.id;
-  const linkedEntry = node.entryId ? entries.find((e) => e.id === node.entryId) : null;
-  const linkedLabel = linkedEntry ? '<span class="mm-link-badge">📷</span>' : '';
   const hasChildren = node.children && node.children.length > 0;
   const isCollapsed = node._collapsed;
   const toggleIcon = hasChildren
@@ -531,12 +529,6 @@ function renderMmNode(node, depth, isRoot) {
     <div class="mm-node ${levelClass}" data-id="${node.id}" data-depth="${depth}">
       <div class="mm-node-row ${isSelected ? 'selected' : ''}" data-id="${node.id}" tabindex="0">
         <span class="mm-node-text" data-id="${node.id}">${escapeHtml(node.text || '(無題)')}</span>
-        ${linkedLabel}
-        <span class="mm-node-actions">
-          <span class="mm-node-btn" data-action="add-child" data-id="${node.id}" title="子ノード追加 (Tab)">+</span>
-          <span class="mm-node-btn" data-action="link" data-id="${node.id}" title="画像エントリーにリンク">🔗</span>
-          ${!isRoot ? `<span class="mm-node-btn danger" data-action="delete" data-id="${node.id}" title="このノードを削除 (Delete)">×</span>` : ''}
-        </span>
         ${toggleIcon}
       </div>
       ${childrenHtml}
@@ -592,20 +584,11 @@ function attachMindmapEvents(canvas, mm) {
   // 行クリック=選択
   canvas.querySelectorAll(".mm-node-row").forEach((row) => {
     row.addEventListener("click", (e) => {
-      if (e.target.closest(".mm-node-btn") || e.target.closest(".mm-toggle")) return;
+      if (e.target.closest(".mm-toggle")) return;
       // 編集中のテキストclickは無視
       if (e.target.matches('.mm-node-text[contenteditable="true"]')) return;
       const id = row.dataset.id;
       selectedNodeId = id;
-      // 既に選択中のノードを再度クリックでリンク先を開く
-      const node = findMmNode(mm.root, id);
-      if (node && node.entryId && entries.find((x) => x.id === node.entryId)) {
-        // ダブルクリック判定:既に選択中なら開く
-        if (row.dataset.justSelected === "1") {
-          openDetail(node.entryId);
-          return;
-        }
-      }
       // 選択状態の表示更新(再描画は重いので最低限のクラス更新だけ)
       canvas.querySelectorAll(".mm-node-row.selected").forEach((r) => r.classList.remove("selected"));
       row.classList.add("selected");
@@ -633,22 +616,8 @@ function attachMindmapEvents(canvas, mm) {
     });
   });
 
-  // アクションボタン
-  canvas.querySelectorAll(".mm-node-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const action = btn.dataset.action;
-      const id = btn.dataset.id;
-      selectedNodeId = id;
-      if (action === "add-child") addMmChild(id);
-      else if (action === "link") linkMmNode(id);
-      else if (action === "delete") deleteMmNode(id);
-    });
-  });
-
   // キーボードイベント(canvas全体)
   canvas.tabIndex = 0;
-  // 既存のkeydown listenerをクリーンに上書きするためにcanvasにフラグ
   if (!canvas._mmKeydownAttached) {
     canvas._mmKeydownAttached = true;
     canvas.addEventListener("keydown", (e) => {
@@ -712,31 +681,45 @@ function startInlineEdit(nodeId) {
   sel.addRange(range);
 
   const oldText = node.text || "";
-  const commit = (cancel) => {
+  const commit = (cancel, nextAction) => {
     if (editingNodeId !== nodeId) return;
     editingNodeId = null;
     txt.removeAttribute("contenteditable");
     const newText = (cancel ? oldText : txt.textContent.trim()) || oldText;
     txt.textContent = newText;
-    if (cancel || newText === oldText) return;
-    node.text = newText;
-    if (node.id === mm.root.id) mm.name = newText;
-    markMmDirty();
-    // ビューバー(マップ名表示)も更新する必要がある場合のみrenderViewBar
-    if (node.id === mm.root.id) renderViewBar();
-    // タイトル表示を更新
-    $("mindmap-title").textContent = mm.name;
-    // コネクター再描画(テキスト幅が変わった可能性)
-    requestAnimationFrame(() => drawConnectors(mm, $("mindmap-canvas")));
+    if (!cancel && newText !== oldText) {
+      node.text = newText;
+      if (node.id === mm.root.id) mm.name = newText;
+      markMmDirty();
+      // ビューバー(マップ名表示)も更新する必要がある場合のみrenderViewBar
+      if (node.id === mm.root.id) renderViewBar();
+      // タイトル表示を更新
+      $("mindmap-title").textContent = mm.name;
+    }
+    // 次のアクション:兄弟 or 子ノード追加 → 連続入力可能に
+    if (nextAction === "sibling") {
+      // ルートに兄弟は作れない → 子にフォールバック
+      requestAnimationFrame(() => addMmSibling(nodeId));
+    } else if (nextAction === "child") {
+      requestAnimationFrame(() => addMmChild(nodeId));
+    } else {
+      // 通常確定:コネクター再描画(テキスト幅が変わった可能性)
+      requestAnimationFrame(() => drawConnectors(mm, $("mindmap-canvas")));
+    }
   };
-  txt.addEventListener("blur", () => commit(false), { once: true });
+  txt.addEventListener("blur", () => commit(false, null), { once: true });
   txt.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      txt.blur();
+      // 編集を確定して、兄弟ノードを自動で追加(Enter連打で次々作れる)
+      commit(false, "sibling");
+    } else if (e.key === "Tab") {
+      e.preventDefault();
+      // 編集を確定して、子ノードを自動で追加(Tabで右に伸びる)
+      commit(false, "child");
     } else if (e.key === "Escape") {
       e.preventDefault();
-      commit(true);
+      commit(true, null);
     }
     e.stopPropagation();
   });
@@ -783,25 +766,6 @@ function deleteMmNode(nodeId) {
   if (!confirm("このノード(と子孫すべて)を削除しますか?")) return;
   found.parent.children = found.parent.children.filter((c) => c.id !== nodeId);
   selectedNodeId = null;
-  markMmDirty();
-  renderMindmap();
-}
-
-function linkMmNode(nodeId) {
-  const mm = getActiveMindmap();
-  if (!mm) return;
-  const node = findMmNode(mm.root, nodeId);
-  if (!node) return;
-  // 簡易実装:プロンプトでentryIDを入力 or 解除
-  const current = node.entryId ? `\n現在リンク中: ${node.entryId}` : "";
-  const id = prompt(`画像エントリーIDをペーストしてリンク。\n(空欄で解除)${current}\n\nヒント:ギャラリーで画像のURLハッシュなどから取得できます。`, node.entryId || "");
-  if (id === null) return;
-  const trimmed = id.trim();
-  if (trimmed && !entries.find((e) => e.id === trimmed)) {
-    if (!confirm(`そのIDの画像エントリーが見つかりません。リンクをこの値に設定しますか?`)) return;
-  }
-  if (trimmed) node.entryId = trimmed;
-  else delete node.entryId;
   markMmDirty();
   renderMindmap();
 }
