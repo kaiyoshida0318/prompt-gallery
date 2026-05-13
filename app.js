@@ -678,28 +678,31 @@ function clearMultiSelection(canvas) {
 
 // 矩形ドラッグ選択
 function attachDragSelection(canvas) {
-  let dragStart = null; // {x, y}
+  let dragStart = null; // {x, y, screenX, screenY}
   let selectionBox = null;
+  let dragMoved = false;
 
-  canvas.addEventListener("mousedown", (e) => {
+  const onMouseDown = (e) => {
     if (e.button !== 0) return; // 左クリックのみ
-    // ノードや背景以外(ボタン等)からは開始しない
+    // ノード自身からの開始は無視(ノードクリックを邪魔しない)
     if (e.target.closest(".mm-node-row") || e.target.closest(".mm-toggle")) return;
-    // SVG上もOK(背景扱い)
+    // 矩形選択ボタン以外(キャンバス背景、SVG、mm-tree、mm-children等)から開始
     const canvasRect = canvas.getBoundingClientRect();
     dragStart = {
       x: e.clientX - canvasRect.left + canvas.scrollLeft,
-      y: e.clientY - canvasRect.top + canvas.scrollTop
+      y: e.clientY - canvasRect.top + canvas.scrollTop,
+      clientX: e.clientX,
+      clientY: e.clientY
     };
-    // 既存の複数選択をクリア
+    dragMoved = false;
+    // 既存の複数選択&単一選択をクリア
     clearMultiSelection(canvas);
-    // 単一選択も解除
     canvas.querySelectorAll(".mm-node-row.selected").forEach((r) => r.classList.remove("selected"));
     selectedNodeId = null;
     e.preventDefault();
-  });
+  };
 
-  canvas.addEventListener("mousemove", (e) => {
+  const onMouseMove = (e) => {
     if (!dragStart) return;
     const canvasRect = canvas.getBoundingClientRect();
     const curX = e.clientX - canvasRect.left + canvas.scrollLeft;
@@ -710,6 +713,7 @@ function attachDragSelection(canvas) {
     const h = Math.abs(curY - dragStart.y);
     // 5px以下のドラッグは無視(誤クリック対策)
     if (w < 5 && h < 5) return;
+    dragMoved = true;
 
     if (!selectionBox) {
       selectionBox = document.createElement("div");
@@ -729,7 +733,6 @@ function attachDragSelection(canvas) {
       const rTop = rBox.top - canvasRect.top + canvas.scrollTop;
       const rRight = rLeft + rBox.width;
       const rBottom = rTop + rBox.height;
-      // 矩形が交差してるか
       const intersect = !(rect.right < rLeft || rect.left > rRight || rect.bottom < rTop || rect.top > rBottom);
       if (intersect) {
         row.classList.add("multi-selected");
@@ -739,22 +742,27 @@ function attachDragSelection(canvas) {
         multiSelectedIds.delete(row.dataset.id);
       }
     });
-  });
+  };
 
-  const endDrag = () => {
+  const onMouseUp = (e) => {
     if (!dragStart) return;
     dragStart = null;
     if (selectionBox) {
       selectionBox.remove();
       selectionBox = null;
     }
-    // canvas にフォーカスを戻して Delete キーを受け取れるように
+    // 選択があったら canvas にフォーカスを戻して Delete キーを受け取れるように
     if (multiSelectedIds.size > 0) {
-      canvas.focus();
+      canvas.focus({ preventScroll: true });
     }
+    dragMoved = false;
   };
-  canvas.addEventListener("mouseup", endDrag);
-  canvas.addEventListener("mouseleave", endDrag);
+
+  // mousedown は canvas で受ける
+  canvas.addEventListener("mousedown", onMouseDown);
+  // mousemove と mouseup は document で受ける(canvas外までドラッグ可能&ノード上もスキャン継続)
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
 }
 
 // 複数選択ノードの一括削除
