@@ -797,12 +797,12 @@ function startInlineEdit(nodeId) {
   txt.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      // 編集を確定して、兄弟ノードを自動で追加(Enter連打で次々作れる)
-      commit(false, "sibling");
+      // 編集を確定のみ(兄弟追加はしない)
+      commit(false, null);
     } else if (e.key === "Tab") {
       e.preventDefault();
-      // 編集を確定して、子ノードを自動で追加(Tabで右に伸びる)
-      commit(false, "child");
+      // 編集を確定のみ(子追加はしない)
+      commit(false, null);
     } else if (e.key === "Escape") {
       e.preventDefault();
       commit(true, null);
