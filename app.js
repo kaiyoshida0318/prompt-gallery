@@ -637,8 +637,94 @@ function attachMindmapEvents(canvas, mm) {
       } else if (e.key === "Delete") {
         e.preventDefault();
         deleteMmNode(selectedNodeId);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        moveSelectionTo(mmCur, "right");
+      } else if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        moveSelectionTo(mmCur, "left");
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        moveSelectionTo(mmCur, "down");
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        moveSelectionTo(mmCur, "up");
       }
     });
+  }
+}
+
+// 矢印キーでノード選択を移動
+function moveSelectionTo(mm, direction) {
+  const current = findMmNodeWithParent(mm.root, selectedNodeId);
+  if (!current) return;
+  const node = current.node;
+  const parent = current.parent;
+  let nextId = null;
+
+  if (direction === "right") {
+    // 右:子の先頭へ。折りたたみ中なら開く
+    if (node.children && node.children.length > 0) {
+      if (node._collapsed) {
+        node._collapsed = false;
+        renderMindmap();
+      }
+      nextId = node.children[0].id;
+    }
+  } else if (direction === "left") {
+    // 左:親へ。ルートなら何もしない
+    if (parent) nextId = parent.id;
+  } else if (direction === "down") {
+    // 下:同階層の次の兄弟へ。なければ次の上位の兄弟探索
+    if (parent) {
+      const idx = parent.children.findIndex((c) => c.id === node.id);
+      if (idx >= 0 && idx < parent.children.length - 1) {
+        nextId = parent.children[idx + 1].id;
+      } else {
+        // 兄弟が無い → 親の次の兄弟を探す(上方向に遡る)
+        let cur = parent;
+        let curParent = findMmNodeWithParent(mm.root, parent.id)?.parent;
+        while (curParent) {
+          const ci = curParent.children.findIndex((c) => c.id === cur.id);
+          if (ci < curParent.children.length - 1) {
+            nextId = curParent.children[ci + 1].id;
+            break;
+          }
+          cur = curParent;
+          curParent = findMmNodeWithParent(mm.root, curParent.id)?.parent;
+        }
+      }
+    }
+  } else if (direction === "up") {
+    // 上:同階層の前の兄弟へ。前の兄弟の末尾の子孫がいればそこへ
+    if (parent) {
+      const idx = parent.children.findIndex((c) => c.id === node.id);
+      if (idx > 0) {
+        // 前の兄弟の最後の表示中の子孫
+        let target = parent.children[idx - 1];
+        while (target.children && target.children.length > 0 && !target._collapsed) {
+          target = target.children[target.children.length - 1];
+        }
+        nextId = target.id;
+      } else {
+        // 前の兄弟がない → 親へ
+        nextId = parent.id;
+      }
+    }
+  }
+
+  if (nextId && nextId !== selectedNodeId) {
+    selectedNodeId = nextId;
+    // 軽量更新:再描画せず、クラス付替えだけ
+    const canvas = $("mindmap-canvas");
+    canvas.querySelectorAll(".mm-node-row.selected").forEach((r) => r.classList.remove("selected"));
+    const newRow = canvas.querySelector(`.mm-node-row[data-id="${CSS.escape(nextId)}"]`);
+    if (newRow) {
+      newRow.classList.add("selected");
+      newRow.focus({ preventScroll: false });
+      // 画面外なら可視範囲にスクロール
+      newRow.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" });
+    }
   }
 }
 
