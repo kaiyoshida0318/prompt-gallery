@@ -610,8 +610,10 @@ main { padding: 32px 40px 80px; }
   display: none;
   margin-left: 4px;
   gap: 2px;
+  align-items: center;
 }
-.view-item:hover .view-item-actions {
+.view-item:hover .view-item-actions,
+.view-item.active .view-item-actions {
   display: inline-flex;
 }
 .view-item-empty {
