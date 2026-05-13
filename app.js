@@ -443,61 +443,124 @@ function renderMindmap() {
   if (!mm) return;
   $("mindmap-title").textContent = mm.name;
   const canvas = $("mindmap-canvas");
-  canvas.innerHTML = renderMmNode(mm.root, true);
+  // mm-treeコンテナとSVGレイヤーを構築
+  canvas.innerHTML = `
+    <svg class="mm-svg" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div class="mm-tree">${renderMmNode(mm.root, 0, true)}</div>
+  `;
   attachMindmapEvents(canvas, mm);
+  // レイアウト確定後にコネクター描画
+  requestAnimationFrame(() => drawConnectors(mm, canvas));
 }
 
-function renderMmNode(node, isRoot) {
+function renderMmNode(node, depth, isRoot) {
   const isSelected = selectedNodeId === node.id;
   const linkedEntry = node.entryId ? entries.find((e) => e.id === node.entryId) : null;
-  const linkedLabel = linkedEntry ? '<span class="mm-link-badge">📷 画像</span>' : '';
+  const linkedLabel = linkedEntry ? '<span class="mm-link-badge">📷</span>' : '';
   const hasChildren = node.children && node.children.length > 0;
   const isCollapsed = node._collapsed;
-  const toggleIcon = hasChildren ? `<span class="mm-toggle" data-action="toggle" data-id="${node.id}">${isCollapsed ? '▶' : '▼'}</span>` : '';
+  const toggleIcon = hasChildren
+    ? `<span class="mm-toggle" data-action="toggle" data-id="${node.id}">${isCollapsed ? '+' : '−'}</span>`
+    : '';
+  const levelClass = isRoot ? 'mm-node-root' : `mm-node-l${Math.min(depth, 4)}`;
   const childrenHtml = hasChildren && !isCollapsed
-    ? `<div class="mm-children">${node.children.map((c) => renderMmNode(c, false)).join("")}</div>`
+    ? `<div class="mm-children">${node.children.map((c) => renderMmNode(c, depth + 1, false)).join("")}</div>`
     : '';
 
   return `
-    <div class="mm-node ${isRoot ? 'mm-node-root' : ''}" data-id="${node.id}">
-      <div class="mm-node-row ${isSelected ? 'selected' : ''}" data-id="${node.id}">
-        ${toggleIcon}
+    <div class="mm-node ${levelClass}" data-id="${node.id}" data-depth="${depth}">
+      <div class="mm-node-row ${isSelected ? 'selected' : ''}" data-id="${node.id}" tabindex="0">
         <span class="mm-node-text" data-id="${node.id}">${escapeHtml(node.text || '(無題)')}</span>
         ${linkedLabel}
         <span class="mm-node-actions">
-          <span class="mm-node-btn" data-action="add-child" data-id="${node.id}" title="子ノード追加">+</span>
+          <span class="mm-node-btn" data-action="add-child" data-id="${node.id}" title="子ノード追加 (Tab)">+</span>
           <span class="mm-node-btn" data-action="link" data-id="${node.id}" title="画像エントリーにリンク">🔗</span>
-          ${!isRoot ? `<span class="mm-node-btn danger" data-action="delete" data-id="${node.id}" title="このノードを削除">×</span>` : ''}
+          ${!isRoot ? `<span class="mm-node-btn danger" data-action="delete" data-id="${node.id}" title="このノードを削除 (Delete)">×</span>` : ''}
         </span>
+        ${toggleIcon}
       </div>
       ${childrenHtml}
     </div>
   `;
 }
 
+// SVGで親 → 子を曲線で繋ぐ
+function drawConnectors(mm, canvas) {
+  const svg = canvas.querySelector(".mm-svg");
+  if (!svg) return;
+  const tree = canvas.querySelector(".mm-tree");
+  if (!tree) return;
+  // canvas相対座標で計算
+  const canvasRect = canvas.getBoundingClientRect();
+  const scrollLeft = canvas.scrollLeft;
+  const scrollTop = canvas.scrollTop;
+  // SVGの実寸を tree のサイズに合わせる
+  const treeRect = tree.getBoundingClientRect();
+  const svgWidth = Math.max(tree.scrollWidth, canvas.clientWidth);
+  const svgHeight = Math.max(tree.scrollHeight, canvas.clientHeight);
+  svg.setAttribute("width", svgWidth);
+  svg.setAttribute("height", svgHeight);
+
+  const paths = [];
+  function walk(node) {
+    if (!node.children || node._collapsed) return;
+    const parentEl = canvas.querySelector(`.mm-node[data-id="${CSS.escape(node.id)}"] > .mm-node-row`);
+    if (!parentEl) return;
+    const pBox = parentEl.getBoundingClientRect();
+    const px = pBox.right - canvasRect.left + scrollLeft;
+    const py = pBox.top + pBox.height / 2 - canvasRect.top + scrollTop;
+    for (const c of node.children) {
+      const childEl = canvas.querySelector(`.mm-node[data-id="${CSS.escape(c.id)}"] > .mm-node-row`);
+      if (!childEl) continue;
+      const cBox = childEl.getBoundingClientRect();
+      const cx = cBox.left - canvasRect.left + scrollLeft;
+      const cy = cBox.top + cBox.height / 2 - canvasRect.top + scrollTop;
+      // 曲線パス:水平に少し進んで、なめらかに垂直方向に曲げる
+      const midX = (px + cx) / 2;
+      paths.push(`M${px},${py} C${midX},${py} ${midX},${cy} ${cx},${cy}`);
+      walk(c);
+    }
+  }
+  walk(mm.root);
+  svg.innerHTML = paths.map((d) => `<path d="${d}"/>`).join("");
+}
+
+// 編集中フラグ
+let editingNodeId = null;
+
 function attachMindmapEvents(canvas, mm) {
   // 行クリック=選択
   canvas.querySelectorAll(".mm-node-row").forEach((row) => {
     row.addEventListener("click", (e) => {
-      // ボタンやトグルクリックは別処理
       if (e.target.closest(".mm-node-btn") || e.target.closest(".mm-toggle")) return;
-      selectedNodeId = row.dataset.id;
-      // リンク先があればクリックで開くかどうか
-      const node = findMmNode(mm.root, row.dataset.id);
+      // 編集中のテキストclickは無視
+      if (e.target.matches('.mm-node-text[contenteditable="true"]')) return;
+      const id = row.dataset.id;
+      selectedNodeId = id;
+      // 既に選択中のノードを再度クリックでリンク先を開く
+      const node = findMmNode(mm.root, id);
       if (node && node.entryId && entries.find((x) => x.id === node.entryId)) {
-        openDetail(node.entryId);
-        return;
+        // ダブルクリック判定:既に選択中なら開く
+        if (row.dataset.justSelected === "1") {
+          openDetail(node.entryId);
+          return;
+        }
       }
-      renderMindmap();
+      // 選択状態の表示更新(再描画は重いので最低限のクラス更新だけ)
+      canvas.querySelectorAll(".mm-node-row.selected").forEach((r) => r.classList.remove("selected"));
+      row.classList.add("selected");
+      row.focus();
     });
   });
-  // テキストダブルクリック=リネーム
+
+  // テキストダブルクリック=インライン編集開始
   canvas.querySelectorAll(".mm-node-text").forEach((txt) => {
     txt.addEventListener("dblclick", (e) => {
       e.stopPropagation();
-      startRenameMmNode(txt.dataset.id);
+      startInlineEdit(txt.dataset.id);
     });
   });
+
   // 折りたたみ
   canvas.querySelectorAll(".mm-toggle").forEach((tg) => {
     tg.addEventListener("click", (e) => {
@@ -509,16 +572,118 @@ function attachMindmapEvents(canvas, mm) {
       }
     });
   });
+
   // アクションボタン
   canvas.querySelectorAll(".mm-node-btn").forEach((btn) => {
     btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const action = btn.dataset.action;
       const id = btn.dataset.id;
+      selectedNodeId = id;
       if (action === "add-child") addMmChild(id);
       else if (action === "link") linkMmNode(id);
       else if (action === "delete") deleteMmNode(id);
     });
+  });
+
+  // キーボードイベント(canvas全体)
+  canvas.tabIndex = 0;
+  // 既存のkeydown listenerをクリーンに上書きするためにcanvasにフラグ
+  if (!canvas._mmKeydownAttached) {
+    canvas._mmKeydownAttached = true;
+    canvas.addEventListener("keydown", (e) => {
+      if (editingNodeId) return; // インライン編集中はそちらに任せる
+      if (!selectedNodeId) return;
+      const mmCur = getActiveMindmap();
+      if (!mmCur) return;
+      if (e.key === "Enter") {
+        e.preventDefault();
+        addMmSibling(selectedNodeId);
+      } else if (e.key === "Tab") {
+        e.preventDefault();
+        addMmChild(selectedNodeId);
+      } else if (e.key === "F2") {
+        e.preventDefault();
+        startInlineEdit(selectedNodeId);
+      } else if (e.key === "Delete") {
+        e.preventDefault();
+        deleteMmNode(selectedNodeId);
+      }
+    });
+  }
+}
+
+// 兄弟ノード追加(Enter)
+async function addMmSibling(nodeId) {
+  const mm = getActiveMindmap();
+  if (!mm) return;
+  const found = findMmNodeWithParent(mm.root, nodeId);
+  if (!found || !found.parent) {
+    // ルートには兄弟を作れない → 代わりに子を作る
+    addMmChild(nodeId);
+    return;
+  }
+  const newNode = { id: "n-" + genId(), text: "新ノード", children: [] };
+  const idx = found.parent.children.findIndex((c) => c.id === nodeId);
+  found.parent.children.splice(idx + 1, 0, newNode);
+  try {
+    await saveData(`Add mindmap sibling`);
+    selectedNodeId = newNode.id;
+    renderMindmap();
+    // 追加後すぐに編集モード
+    setTimeout(() => startInlineEdit(newNode.id), 50);
+  } catch (err) {
+    alert("追加失敗: " + err.message);
+  }
+}
+
+// インライン編集(contenteditableで)
+function startInlineEdit(nodeId) {
+  const mm = getActiveMindmap();
+  if (!mm) return;
+  const node = findMmNode(mm.root, nodeId);
+  if (!node) return;
+  const txt = document.querySelector(`.mm-node-text[data-id="${CSS.escape(nodeId)}"]`);
+  if (!txt) return;
+  editingNodeId = nodeId;
+  txt.setAttribute("contenteditable", "true");
+  txt.focus();
+  // 全選択
+  const range = document.createRange();
+  range.selectNodeContents(txt);
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+  sel.addRange(range);
+
+  const oldText = node.text || "";
+  const commit = async (cancel) => {
+    if (editingNodeId !== nodeId) return;
+    editingNodeId = null;
+    txt.removeAttribute("contenteditable");
+    const newText = (cancel ? oldText : txt.textContent.trim()) || oldText;
+    txt.textContent = newText;
+    if (cancel || newText === oldText) return;
+    try {
+      node.text = newText;
+      if (node.id === mm.root.id) mm.name = newText;
+      await saveData(`Rename mindmap node`);
+      render();
+    } catch (err) {
+      alert("変更失敗: " + err.message);
+      node.text = oldText;
+      renderMindmap();
+    }
+  };
+  txt.addEventListener("blur", () => commit(false), { once: true });
+  txt.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      txt.blur();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      commit(true);
+    }
+    e.stopPropagation();
   });
 }
 
@@ -544,59 +709,19 @@ async function addMmChild(parentId) {
   if (!mm) return;
   const parent = findMmNode(mm.root, parentId);
   if (!parent) return;
-  const name = prompt("新しいノードの名前を入力", "新ノード");
-  if (!name || !name.trim()) return;
   if (!parent.children) parent.children = [];
-  const newNode = { id: "n-" + genId(), text: name.trim(), children: [] };
+  const newNode = { id: "n-" + genId(), text: "新ノード", children: [] };
   parent.children.push(newNode);
   parent._collapsed = false;
   try {
-    await saveData(`Add mindmap node: ${name.trim()}`);
+    await saveData(`Add mindmap node`);
     selectedNodeId = newNode.id;
     renderMindmap();
+    // 追加後すぐにインライン編集モード
+    setTimeout(() => startInlineEdit(newNode.id), 50);
   } catch (err) {
     alert("追加失敗: " + err.message);
   }
-}
-
-function startRenameMmNode(nodeId) {
-  const mm = getActiveMindmap();
-  if (!mm) return;
-  const node = findMmNode(mm.root, nodeId);
-  if (!node) return;
-  const txt = document.querySelector(`.mm-node-text[data-id="${CSS.escape(nodeId)}"]`);
-  if (!txt) return;
-  const oldText = node.text || "";
-  const input = document.createElement("input");
-  input.type = "text";
-  input.className = "mm-node-text-input";
-  input.value = oldText;
-  txt.replaceWith(input);
-  input.focus();
-  input.select();
-  const commit = async () => {
-    const newText = input.value.trim();
-    if (!newText || newText === oldText) {
-      renderMindmap();
-      return;
-    }
-    try {
-      node.text = newText;
-      // ルートノードの場合はマインドマップ名も同期
-      if (node.id === mm.root.id) mm.name = newText;
-      await saveData(`Rename mindmap node`);
-      renderMindmap();
-    } catch (err) {
-      alert("変更失敗: " + err.message);
-      node.text = oldText;
-      renderMindmap();
-    }
-  };
-  input.addEventListener("blur", commit);
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") { e.preventDefault(); commit(); }
-    else if (e.key === "Escape") { e.preventDefault(); renderMindmap(); }
-  });
 }
 
 async function deleteMmNode(nodeId) {
