@@ -187,9 +187,10 @@ input, textarea { font-family: inherit; }
   color: var(--accent);
 }
 .tab-item-all {
-  border-left: 1px solid var(--line);
-  margin-left: 8px;
-  padding-left: 20px;
+  border-right: 1px solid var(--line);
+  margin-right: 8px;
+  padding-right: 20px;
+  font-weight: 600;
 }
 .tab-item-actions {
   display: none;
@@ -613,6 +614,13 @@ main { padding: 32px 40px 80px; }
 .view-item:hover .view-item-actions {
   display: inline-flex;
 }
+.view-item-empty {
+  padding: 10px 16px 9px;
+  font-size: 12px;
+  color: var(--ink-mute);
+  font-style: italic;
+  font-family: var(--serif);
+}
 
 /* ========== MINDMAP (XMind風 横方向ツリー) ========== */
 .mindmap-toolbar {
@@ -655,6 +663,21 @@ main { padding: 32px 40px 80px; }
   min-height: 500px;
   overflow: auto;
   position: relative;
+  user-select: none;
+}
+/* ドラッグ矩形選択ボックス */
+.mm-selection-box {
+  position: absolute;
+  border: 1.5px dashed var(--accent);
+  background: rgba(200, 69, 28, 0.08);
+  pointer-events: none;
+  z-index: 10;
+}
+/* 複数選択中のノード(選択ハイライト) */
+.mm-node-row.multi-selected {
+  border-color: var(--accent);
+  background: rgba(200, 69, 28, 0.15);
+  box-shadow: 0 0 0 2px rgba(200, 69, 28, 0.3);
 }
 .mm-tree {
   position: relative;
