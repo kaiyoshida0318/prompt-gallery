@@ -993,19 +993,27 @@ function attachNodeDragAndDrop(canvas) {
     }
     // ターゲット行内のどこにマウスがあるかで判定
     const rBox = targetRow.getBoundingClientRect();
-    const ratio = (e.clientY - rBox.top) / rBox.height;
+    const offsetY = e.clientY - rBox.top;
+    const offsetX = e.clientX - rBox.left;
     let position;
     const mm = getActiveMindmap();
     const isRoot = mm && targetId === mm.root.id;
     if (isRoot) {
       // ルートは "into"(子追加)しか許可しない
       position = "into";
-    } else if (ratio < 0.25) {
-      position = "before"; // 兄弟・前
-    } else if (ratio > 0.75) {
-      position = "after"; // 兄弟・後
     } else {
-      position = "into"; // 子として
+      // 右半分にドロップ → 子追加
+      // 縦的にノードのど真ん中(縦25%~75%)にあれば子追加(重ね判定)
+      // それ以外(左半分かつ縦が上端/下端寄り)→ 兄弟挿入
+      const inRightHalf = offsetX > rBox.width / 2;
+      const inVerticalMiddle = offsetY > rBox.height * 0.25 && offsetY < rBox.height * 0.75;
+      if (inRightHalf || inVerticalMiddle) {
+        position = "into";
+      } else if (offsetY < rBox.height / 2) {
+        position = "before";
+      } else {
+        position = "after";
+      }
     }
     if (position === "into") {
       targetRow.classList.add("drop-target-into");
