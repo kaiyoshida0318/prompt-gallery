@@ -49,7 +49,7 @@ input, textarea { font-family: inherit; }
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 28px 40px 20px;
+  padding: 10px 40px;
   border-bottom: 1px solid var(--line);
   background: var(--bg);
   position: sticky;
@@ -59,7 +59,7 @@ input, textarea { font-family: inherit; }
 .header-left { display: flex; align-items: center; }
 .logo-full {
   display: block;
-  height: 40px;
+  height: 28px;
   width: auto;
   flex-shrink: 0;
   transition: opacity 0.15s;
@@ -134,7 +134,7 @@ input, textarea { font-family: inherit; }
   overflow-x: auto;
   scrollbar-width: thin;
   position: sticky;
-  top: 132px;
+  top: 88px;
   z-index: 48;
 }
 .tab-list {
@@ -573,7 +573,7 @@ main { padding: 32px 40px 80px; }
   overflow-x: auto;
   scrollbar-width: thin;
   position: sticky;
-  top: 92px;
+  top: 48px;
   z-index: 49;
 }
 .view-list {
@@ -662,8 +662,8 @@ main { padding: 32px 40px 80px; }
   border: 1px solid var(--line);
   border-radius: var(--radius);
   padding: 40px 30px;
-  min-height: calc(100vh - 320px);
-  height: calc(100vh - 320px);
+  min-height: calc(100vh - 240px);
+  height: calc(100vh - 240px);
   overflow: auto;
   position: relative;
   user-select: none;
@@ -1580,12 +1580,11 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
   .form-left textarea#edit-prompt { min-height: 180px; }
 }
 @media (max-width: 720px) {
-  .site-header { padding: 20px; }
-  .logo-full { height: 32px; }
-  .view-bar { padding: 0 16px; top: 76px; }
-  .tab-bar { padding: 0 16px; top: 116px; }
+  .site-header { padding: 8px 20px; }
+  .logo-full { height: 24px; }
+  .view-bar { padding: 0 16px; top: 42px; }
+  .tab-bar { padding: 0 16px; top: 78px; }
   .tab-item { padding: 10px 12px 9px; font-size: 12px; }
-  .toolbar { padding: 16px 20px; top: 148px; }
   main { padding: 20px; }
   .gallery { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
   .modal-inner { padding: 24px 20px; }
