@@ -682,6 +682,46 @@ main { padding: 32px 40px 80px; }
   background: rgba(200, 69, 28, 0.15);
   box-shadow: 0 0 0 2px rgba(200, 69, 28, 0.3);
 }
+
+/* ドラッグ中のノード(元位置を薄く) */
+.mm-node-row.dragging {
+  opacity: 0.4;
+}
+/* ドロップ先候補:子として追加(ホバー時) */
+.mm-node-row.drop-target-into {
+  outline: 2.5px solid var(--accent);
+  outline-offset: 2px;
+  background: var(--accent-soft);
+}
+/* ドロップ先候補:兄弟として追加(前後にライン表示) */
+.mm-node-row.drop-target-before::before,
+.mm-node-row.drop-target-after::after {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 2px;
+  z-index: 5;
+}
+.mm-node-row.drop-target-before::before { top: -5px; }
+.mm-node-row.drop-target-after::after { bottom: -5px; }
+/* ドラッグ中のゴースト(マウスに付いてくる小さなプレビュー) */
+.mm-drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  padding: 4px 12px;
+  background: var(--card);
+  border: 1.5px solid var(--accent);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--ink);
+  opacity: 0.9;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  white-space: nowrap;
+}
 .mm-tree {
   position: relative;
   display: flex;
