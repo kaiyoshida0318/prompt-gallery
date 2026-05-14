@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.17.4" />
+<link rel="stylesheet" href="style.css?v=1.18.0" />
 </head>
 <body>
 
@@ -41,7 +41,7 @@
     <img id="logo-link" class="logo-full" src="logo-header.png" alt="Prompt Gallery" style="cursor:pointer" title="ホーム(全て)に戻る" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.17.4</span>
+    <span class="version-badge">v1.18.0</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
@@ -66,14 +66,8 @@
   <button id="btn-add-tab" class="btn-tab-add" title="新しいカテゴリを追加">+</button>
 </nav>
 
-<!-- ============== 検索バー ============== -->
-<div class="toolbar">
-  <div class="search-wrap">
-    <span class="search-icon">⌕</span>
-    <input id="search-input" type="text" placeholder="プロンプト・素材データ・モデル名で検索…" />
-  </div>
-  <div id="tag-filters" class="tag-filters"></div>
-</div>
+<!-- 検索バーは削除されましたが、互換のため隠したinputを保持 -->
+<input id="search-input" type="hidden" value="" />
 
 <!-- ============== メイン ============== -->
 <main>
@@ -89,16 +83,18 @@
     <div class="mindmap-toolbar">
       <h2 id="mindmap-title" class="mindmap-title"></h2>
       <div class="mindmap-help">
-        <kbd>↑↓←→</kbd> 移動 / <kbd>Enter</kbd> 兄弟 / <kbd>Tab</kbd> 子 / <kbd>F2</kbd> 編集 / <kbd>Delete</kbd> 削除 / 空エリアをドラッグで矩形選択
+        <kbd>Ctrl+Z</kbd> 戻る / <kbd>Ctrl+Shift+Z</kbd> やり直し / <kbd>Enter</kbd> 兄弟 / <kbd>Tab</kbd> 子 / <kbd>Delete</kbd> 削除
       </div>
       <div class="mindmap-actions">
+        <button id="btn-mindmap-undo" class="tag-mgr-btn" title="戻る (Ctrl+Z)">↶ 戻る</button>
+        <button id="btn-mindmap-redo" class="tag-mgr-btn" title="やり直し (Ctrl+Shift+Z)">↷ やり直し</button>
         <button id="btn-mindmap-save" class="tag-mgr-btn" title="現在の変更を保存(Ctrl+S)">💾 保存済み</button>
         <button id="btn-mindmap-rename" class="tag-mgr-btn">名前変更</button>
         <button id="btn-mindmap-delete" class="tag-mgr-btn danger">マップを削除</button>
       </div>
     </div>
     <div id="mindmap-canvas" class="mindmap-canvas" tabindex="0"></div>
-    <p class="field-hint" style="margin-top:12px">ノード選択中に <kbd>Tab</kbd>=右に子追加、<kbd>Enter</kbd>=下に兄弟追加。編集中の <kbd>Enter</kbd> は確定のみ(続けて <kbd>Enter</kbd> でもう1つ作れる)。</p>
+    <p class="field-hint" style="margin-top:12px"><kbd>↑↓←→</kbd>移動 / <kbd>Tab</kbd>子追加 / <kbd>Enter</kbd>兄弟追加 / <kbd>F2</kbd>編集 / <kbd>Delete</kbd>削除 / 背景ドラッグで矩形選択 / <kbd>Ctrl+Z</kbd>戻る / <kbd>Ctrl+S</kbd>保存</p>
   </div>
 </main>
 
@@ -432,6 +428,6 @@
   </div>
 </div>
 
-<script src="app.js?v=1.17.4"></script>
+<script src="app.js?v=1.18.0"></script>
 </body>
 </html>
