@@ -508,7 +508,7 @@ function renderMindmap() {
   });
 }
 
-// ルートノードをキャンバスの「上から45%・左から25%」位置に配置
+// ルートノードをキャンバスの「上から10%・左から25%」位置に配置
 function centerRootInCanvas(canvas, mm) {
   const rootRow = canvas.querySelector(`.mm-node[data-id="${CSS.escape(mm.root.id)}"] > .mm-node-row`);
   if (!rootRow) return;
@@ -517,8 +517,8 @@ function centerRootInCanvas(canvas, mm) {
   // ルートの中央座標(canvas相対)
   const rootCenterY = rootRect.top - canvasRect.top + canvas.scrollTop + rootRect.height / 2;
   const rootCenterX = rootRect.left - canvasRect.left + canvas.scrollLeft + rootRect.width / 2;
-  // キャンバス内で「上から45%・左から25%」の位置にルート中央が来るようなスクロール
-  const targetScrollTop = rootCenterY - canvas.clientHeight * 0.45;
+  // キャンバス内で「上から10%・左から25%」の位置にルート中央が来るようなスクロール
+  const targetScrollTop = rootCenterY - canvas.clientHeight * 0.10;
   const targetScrollLeft = rootCenterX - canvas.clientWidth * 0.25;
   canvas.scrollTo({
     top: Math.max(0, targetScrollTop),
