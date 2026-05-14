@@ -760,6 +760,11 @@ function attachMindmapEvents(canvas, mm) {
     canvas._mmDragAttached = true;
     attachDragSelection(canvas);
   }
+  // ノードドラッグ&ドロップで並び替え
+  if (!canvas._mmNodeDragAttached) {
+    canvas._mmNodeDragAttached = true;
+    attachNodeDragAndDrop(canvas);
+  }
 
   // キーボードイベント(canvas全体)
   canvas.tabIndex = 0;
@@ -902,6 +907,203 @@ function attachDragSelection(canvas) {
   // mousemove と mouseup は document で受ける(canvas外までドラッグ可能&ノード上もスキャン継続)
   document.addEventListener("mousemove", onMouseMove);
   document.addEventListener("mouseup", onMouseUp);
+}
+
+// ---------- ノードのドラッグ&ドロップで並び替え ----------
+function attachNodeDragAndDrop(canvas) {
+  let dragNodeId = null;
+  let dragStartPos = null; // {x, y}
+  let isDragging = false;
+  let ghostEl = null;
+  let lastDropInfo = null; // {targetId, position: 'into'|'before'|'after'}
+
+  const onMouseDown = (e) => {
+    if (e.button !== 0) return;
+    // ノードの上でだけ反応
+    const row = e.target.closest(".mm-node-row");
+    if (!row) return;
+    // ボタン類は無視
+    if (e.target.closest(".mm-node-btn") || e.target.closest(".mm-toggle")) return;
+    // contenteditableな要素(編集中)は無視
+    if (e.target.matches('[contenteditable="true"]')) return;
+    dragNodeId = row.dataset.id;
+    dragStartPos = { x: e.clientX, y: e.clientY };
+    isDragging = false;
+    // ここではpreventDefaultしない:クリック扱いも残したいので
+  };
+
+  const onMouseMove = (e) => {
+    if (!dragNodeId) return;
+    // 開始位置から5px以上動いたらドラッグ開始
+    const dx = e.clientX - dragStartPos.x;
+    const dy = e.clientY - dragStartPos.y;
+    if (!isDragging && Math.hypot(dx, dy) > 5) {
+      // ルートはドラッグ不可
+      const mm = getActiveMindmap();
+      if (mm && dragNodeId === mm.root.id) {
+        dragNodeId = null;
+        return;
+      }
+      isDragging = true;
+      // 編集中はキャンセル
+      if (editingNodeId) {
+        dragNodeId = null;
+        isDragging = false;
+        return;
+      }
+      // 元ノードを薄く
+      const sourceRow = canvas.querySelector(`.mm-node-row[data-id="${CSS.escape(dragNodeId)}"]`);
+      if (sourceRow) sourceRow.classList.add("dragging");
+      // ゴースト作成
+      const node = findMmNode(mm.root, dragNodeId);
+      if (node) {
+        ghostEl = document.createElement("div");
+        ghostEl.className = "mm-drag-ghost";
+        ghostEl.textContent = node.text || "(無題)";
+        document.body.appendChild(ghostEl);
+      }
+      document.body.style.cursor = "grabbing";
+    }
+    if (!isDragging) return;
+
+    // ゴースト位置更新
+    if (ghostEl) {
+      ghostEl.style.left = (e.clientX + 12) + "px";
+      ghostEl.style.top = (e.clientY + 12) + "px";
+    }
+
+    // 直下のターゲットを判定(ゴーストはpointer-events:none)
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    // 前回のハイライトクリア
+    clearDropHints(canvas);
+    if (!target) {
+      lastDropInfo = null;
+      return;
+    }
+    const targetRow = target.closest(".mm-node-row");
+    if (!targetRow || targetRow.dataset.id === dragNodeId) {
+      lastDropInfo = null;
+      return;
+    }
+    const targetId = targetRow.dataset.id;
+    // 自分の子孫の中にはドロップ不可(ループ防止)
+    if (isDescendant(dragNodeId, targetId)) {
+      lastDropInfo = null;
+      return;
+    }
+    // ターゲット行内のどこにマウスがあるかで判定
+    const rBox = targetRow.getBoundingClientRect();
+    const ratio = (e.clientY - rBox.top) / rBox.height;
+    let position;
+    const mm = getActiveMindmap();
+    const isRoot = mm && targetId === mm.root.id;
+    if (isRoot) {
+      // ルートは "into"(子追加)しか許可しない
+      position = "into";
+    } else if (ratio < 0.25) {
+      position = "before"; // 兄弟・前
+    } else if (ratio > 0.75) {
+      position = "after"; // 兄弟・後
+    } else {
+      position = "into"; // 子として
+    }
+    if (position === "into") {
+      targetRow.classList.add("drop-target-into");
+    } else if (position === "before") {
+      targetRow.classList.add("drop-target-before");
+    } else {
+      targetRow.classList.add("drop-target-after");
+    }
+    lastDropInfo = { targetId, position };
+  };
+
+  const onMouseUp = (e) => {
+    if (!dragNodeId) return;
+    const wasDragging = isDragging;
+    const sourceId = dragNodeId;
+    const dropInfo = lastDropInfo;
+    // 後片付け
+    dragNodeId = null;
+    dragStartPos = null;
+    isDragging = false;
+    lastDropInfo = null;
+    clearDropHints(canvas);
+    canvas.querySelectorAll(".mm-node-row.dragging").forEach((r) => r.classList.remove("dragging"));
+    if (ghostEl) {
+      ghostEl.remove();
+      ghostEl = null;
+    }
+    document.body.style.cursor = "";
+    if (!wasDragging) return; // 単なるクリックの場合はここで終わり
+    if (!dropInfo) return;
+    // 実行
+    moveMmNodeTo(sourceId, dropInfo.targetId, dropInfo.position);
+  };
+
+  canvas.addEventListener("mousedown", onMouseDown);
+  document.addEventListener("mousemove", onMouseMove);
+  document.addEventListener("mouseup", onMouseUp);
+}
+
+function clearDropHints(canvas) {
+  canvas.querySelectorAll(".drop-target-into, .drop-target-before, .drop-target-after").forEach((el) => {
+    el.classList.remove("drop-target-into", "drop-target-before", "drop-target-after");
+  });
+}
+
+// ノードAがノードBの子孫かどうか(B以下のサブツリーにAが含まれるか)
+function isDescendant(ancestorId, candidateId) {
+  const mm = getActiveMindmap();
+  if (!mm) return false;
+  if (ancestorId === candidateId) return true;
+  const ancestor = findMmNode(mm.root, ancestorId);
+  if (!ancestor) return false;
+  function walk(node) {
+    if (node.id === candidateId) return true;
+    if (!node.children) return false;
+    for (const c of node.children) {
+      if (walk(c)) return true;
+    }
+    return false;
+  }
+  return walk(ancestor);
+}
+
+// ノードを別の場所に移動
+function moveMmNodeTo(sourceId, targetId, position) {
+  const mm = getActiveMindmap();
+  if (!mm) return;
+  if (sourceId === targetId) return;
+  const sourceFound = findMmNodeWithParent(mm.root, sourceId);
+  const targetFound = findMmNodeWithParent(mm.root, targetId);
+  if (!sourceFound || !targetFound) return;
+  if (!sourceFound.parent) return; // ルートは動かせない
+  // ループ防止チェック
+  if (isDescendant(sourceId, targetId)) return;
+
+  pushMmHistory();
+
+  // 元の親から外す
+  sourceFound.parent.children = sourceFound.parent.children.filter((c) => c.id !== sourceId);
+  const node = sourceFound.node;
+
+  if (position === "into") {
+    // ターゲットの子として末尾に追加
+    if (!targetFound.node.children) targetFound.node.children = [];
+    targetFound.node.children.push(node);
+    targetFound.node._collapsed = false;
+  } else {
+    // ターゲットの兄弟として、前 or 後
+    const parent = targetFound.parent;
+    if (!parent) return; // ターゲットがルートだった場合は into 扱いになるはずなのでここには来ない
+    const idx = parent.children.findIndex((c) => c.id === targetId);
+    if (idx === -1) return;
+    const insertAt = position === "before" ? idx : idx + 1;
+    parent.children.splice(insertAt, 0, node);
+  }
+
+  markMmDirty();
+  renderMindmap();
 }
 
 // 複数選択ノードの一括削除
