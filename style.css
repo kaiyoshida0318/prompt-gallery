@@ -687,7 +687,7 @@ main { padding: 32px 40px 80px; }
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  padding-top: 10vh;
+  padding-top: 0;
   padding-left: 25%;
   min-height: 100%;
   min-width: 100%;
