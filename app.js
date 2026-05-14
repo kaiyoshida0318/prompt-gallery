@@ -17,6 +17,10 @@ let mindmaps = [];      // マインドマップ [{id, name, root}]
 let activeViewId = "_gallery"; // "_gallery" or mindmap.id
 let selectedNodeId = null; // 編集中の選択ノード
 let mmDirty = false;       // マインドマップに未保存の変更があるか
+let mmHistory = [];        // 履歴スタック(各エントリ:該当マインドマップのJSONスナップショット)
+let mmHistoryIndex = -1;   // 現在の位置(-1=履歴なし)
+let mmHistoryMapId = null; // 現在の履歴が対象としているマップID
+const MM_HISTORY_LIMIT = 50;
 let activeTabId = "_all"; // 選択中のタブID ("_all" は全て表示)
 let activeTag = null;   // タグフィルタ
 let currentDetailId = null;
@@ -482,6 +486,8 @@ function getActiveMindmap() {
 function renderMindmap() {
   const mm = getActiveMindmap();
   if (!mm) return;
+  // 履歴初期化(マップ切り替え時)
+  initMmHistory();
   $("mindmap-title").textContent = mm.name;
   // 保存ボタンの状態を反映
   updateMmSaveButton();
@@ -525,6 +531,80 @@ function centerRootInCanvas(canvas, mm) {
 function markMmDirty() {
   mmDirty = true;
   updateMmSaveButton();
+}
+
+// ---------- マインドマップ Undo/Redo 履歴 ----------
+// 現在のマインドマップ状態をスナップショット保存
+function pushMmHistory() {
+  const mm = getActiveMindmap();
+  if (!mm) return;
+  // マップが切り替わったら履歴をリセット
+  if (mmHistoryMapId !== mm.id) {
+    mmHistory = [];
+    mmHistoryIndex = -1;
+    mmHistoryMapId = mm.id;
+  }
+  // redo分があれば破棄
+  if (mmHistoryIndex < mmHistory.length - 1) {
+    mmHistory = mmHistory.slice(0, mmHistoryIndex + 1);
+  }
+  // 深いコピーをスナップショット
+  const snapshot = JSON.stringify({ name: mm.name, root: mm.root });
+  // 直前と同じなら追加しない(連続変更でムダ履歴を防ぐ)
+  if (mmHistory.length > 0 && mmHistory[mmHistory.length - 1] === snapshot) return;
+  mmHistory.push(snapshot);
+  // 上限超えたら古いものを捨てる
+  if (mmHistory.length > MM_HISTORY_LIMIT) {
+    mmHistory.shift();
+  }
+  mmHistoryIndex = mmHistory.length - 1;
+}
+
+// 履歴から復元
+function applyMmHistoryAt(index) {
+  if (index < 0 || index >= mmHistory.length) return;
+  const mm = mindmaps.find((m) => m.id === mmHistoryMapId);
+  if (!mm) return;
+  try {
+    const snap = JSON.parse(mmHistory[index]);
+    mm.name = snap.name;
+    mm.root = snap.root;
+    mmHistoryIndex = index;
+    selectedNodeId = null;
+    multiSelectedIds.clear();
+    markMmDirty();
+    renderViewBar();
+    renderMindmap();
+  } catch (e) {
+    console.error("履歴復元失敗", e);
+  }
+}
+
+function undoMm() {
+  if (mmHistoryIndex > 0) {
+    applyMmHistoryAt(mmHistoryIndex - 1);
+  }
+}
+
+function redoMm() {
+  if (mmHistoryIndex < mmHistory.length - 1) {
+    applyMmHistoryAt(mmHistoryIndex + 1);
+  }
+}
+
+// マインドマップを開いた時、初期スナップショットを保存
+function initMmHistory() {
+  const mm = getActiveMindmap();
+  if (!mm) return;
+  if (mmHistoryMapId !== mm.id) {
+    mmHistory = [];
+    mmHistoryIndex = -1;
+    mmHistoryMapId = mm.id;
+    // 現状を初期スナップショットとして保存
+    const snapshot = JSON.stringify({ name: mm.name, root: mm.root });
+    mmHistory.push(snapshot);
+    mmHistoryIndex = 0;
+  }
 }
 
 function updateMmSaveButton() {
@@ -839,6 +919,7 @@ function deleteMultiSelected() {
     renderMindmap();
     return;
   }
+  pushMmHistory();
   // 各ノードを親から削除(子孫も自動で消える)
   for (const id of targets) {
     const found = findMmNodeWithParent(mm.root, id);
@@ -936,6 +1017,7 @@ function addMmSibling(nodeId) {
     addMmChild(nodeId);
     return;
   }
+  pushMmHistory();
   const newNode = { id: "n-" + genId(), text: "新ノード", children: [] };
   const idx = found.parent.children.findIndex((c) => c.id === nodeId);
   found.parent.children.splice(idx + 1, 0, newNode);
@@ -972,6 +1054,7 @@ function startInlineEdit(nodeId) {
     const newText = (cancel ? oldText : txt.textContent.trim()) || oldText;
     txt.textContent = newText;
     if (!cancel && newText !== oldText) {
+      pushMmHistory();
       node.text = newText;
       if (node.id === mm.root.id) mm.name = newText;
       markMmDirty();
@@ -1040,6 +1123,7 @@ function addMmChild(parentId) {
   if (!mm) return;
   const parent = findMmNode(mm.root, parentId);
   if (!parent) return;
+  pushMmHistory();
   if (!parent.children) parent.children = [];
   const newNode = { id: "n-" + genId(), text: "新ノード", children: [] };
   parent.children.push(newNode);
@@ -1056,6 +1140,7 @@ function deleteMmNode(nodeId) {
   if (!mm) return;
   const found = findMmNodeWithParent(mm.root, nodeId);
   if (!found || !found.parent) return; // ルートは削除不可
+  pushMmHistory();
   found.parent.children = found.parent.children.filter((c) => c.id !== nodeId);
   selectedNodeId = null;
   markMmDirty();
@@ -2527,10 +2612,33 @@ function bindEvents() {
   $("btn-mindmap-rename").addEventListener("click", renameMindmap);
   $("btn-mindmap-delete").addEventListener("click", deleteMindmap);
   $("btn-mindmap-save").addEventListener("click", saveMindmapChanges);
+  $("btn-mindmap-undo").addEventListener("click", undoMm);
+  $("btn-mindmap-redo").addEventListener("click", redoMm);
 
-  // Ctrl+S(またはCmd+S)で保存
+  // Ctrl+S(またはCmd+S)で保存、Ctrl+Z/Y で undo/redo
   document.addEventListener("keydown", (e) => {
-    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+    const isMod = e.ctrlKey || e.metaKey;
+    if (!isMod) return;
+    // マインドマップビュー時のみ undo/redo
+    if (activeViewId !== "_gallery") {
+      // インライン編集中はブラウザのデフォルト(テキスト編集の undo)に任せる
+      if (editingNodeId) return;
+      // 入力フィールドにフォーカスがある時もスキップ
+      const tag = (document.activeElement && document.activeElement.tagName) || "";
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      if (e.key === "z" && !e.shiftKey) {
+        e.preventDefault();
+        undoMm();
+        return;
+      }
+      if ((e.key === "z" && e.shiftKey) || e.key === "y") {
+        e.preventDefault();
+        redoMm();
+        return;
+      }
+    }
+    if (e.key === "s") {
       if (activeViewId !== "_gallery" && mmDirty) {
         e.preventDefault();
         saveMindmapChanges();
