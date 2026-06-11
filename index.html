@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,600;9..144,800&family=JetBrains+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet" />
-<link rel="stylesheet" href="style.css?v=1.19.0" />
+<link rel="stylesheet" href="style.css?v=1.20.0" />
 </head>
 <body>
 
@@ -41,7 +41,7 @@
     <img id="logo-link" class="logo-full" src="logo-header.png" alt="Prompt Gallery" style="cursor:pointer" title="ホーム(全て)に戻る" />
   </div>
   <div class="header-right">
-    <span class="version-badge">v1.19.2</span>
+    <span class="version-badge">v1.20.0</span>
     <div class="stat">
       <span class="stat-num" id="stat-count">0</span>
       <span class="stat-label">items</span>
@@ -428,6 +428,40 @@
   </div>
 </div>
 
-<script src="app.js?v=1.19.2"></script>
+<!-- ============== 接続設定モーダル ============== -->
+<div id="settings-modal" class="modal" style="display:none">
+  <div class="modal-inner">
+    <button class="modal-close" data-close="settings-modal">×</button>
+    <h2>接続設定</h2>
+    <p class="auth-desc" style="margin-bottom:16px">現在GitHubに接続して使用している情報です。</p>
+
+    <div class="settings-info">
+      <div class="settings-row">
+        <span class="settings-label">GitHubユーザー名</span>
+        <span id="settings-owner" class="settings-value"></span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">データリポジトリ</span>
+        <span id="settings-repo" class="settings-value"></span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">ブランチ</span>
+        <span id="settings-branch" class="settings-value"></span>
+      </div>
+      <div class="settings-row">
+        <span class="settings-label">アクセストークン</span>
+        <span id="settings-token" class="settings-value settings-token-masked"></span>
+        <button id="btn-token-toggle" class="tag-mgr-btn" style="margin-left:8px">表示</button>
+      </div>
+    </div>
+
+    <div class="settings-footer">
+      <button class="btn-secondary" data-close="settings-modal">閉じる</button>
+      <button id="btn-settings-reset" class="settings-reset-btn" title="接続設定をリセット(トークン等を削除)">リセット</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js?v=1.20.0"></script>
 </body>
 </html>
