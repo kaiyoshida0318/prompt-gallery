@@ -1613,6 +1613,63 @@ textarea { resize: vertical; font-family: var(--mono); font-size: 12.5px; line-h
   margin: 0;
 }
 
+/* ========== SETTINGS MODAL ========== */
+.settings-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--bg-2);
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  gap: 12px;
+}
+.settings-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-mute);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  flex-shrink: 0;
+  min-width: 150px;
+}
+.settings-value {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink);
+  flex: 1;
+  word-break: break-all;
+}
+.settings-token-masked {
+  letter-spacing: 0.05em;
+}
+.settings-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+}
+/* 右下に小さく目立たないリセットボタン */
+.settings-reset-btn {
+  font-size: 11px;
+  padding: 4px 10px;
+  color: var(--ink-mute);
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.settings-reset-btn:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
 /* ========== RESPONSIVE ========== */
 @media (max-width: 900px) {
   .form-grid { grid-template-columns: 1fr; gap: 16px; }
