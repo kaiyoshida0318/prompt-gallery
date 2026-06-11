@@ -284,6 +284,28 @@ function clearAuth() {
   localStorage.removeItem(STORAGE_KEY);
 }
 
+// トークンをマスク表示(先頭4文字 + ・・・ + 末尾4文字)
+function maskToken(token) {
+  if (!token) return "";
+  if (token.length <= 12) return "••••••••";
+  return token.slice(0, 4) + "••••••••••••••••" + token.slice(-4);
+}
+
+// 接続設定モーダルを開く
+function openSettingsModal() {
+  closeAllModals();
+  $("settings-owner").textContent = auth.owner || "—";
+  $("settings-repo").textContent = auth.repo || "—";
+  $("settings-branch").textContent = auth.branch || "—";
+  // トークンは最初マスク表示
+  const tokenEl = $("settings-token");
+  tokenEl.textContent = maskToken(auth.token);
+  tokenEl.classList.add("settings-token-masked");
+  tokenEl.dataset.shown = "0";
+  $("btn-token-toggle").textContent = "表示";
+  $("settings-modal").style.display = "flex";
+}
+
 async function verifyAuth(a) {
   const res = await fetch(`https://api.github.com/repos/${a.owner}/${a.repo}`, {
     headers: { "Authorization": `token ${a.token}`, "Accept": "application/vnd.github+json" }
@@ -2204,7 +2226,7 @@ function handleEditMaterialFiles(files) {
 
 // ---------- 詳細モーダル ----------
 function closeAllModals() {
-  ["add-modal", "edit-modal", "detail-modal", "tab-edit-modal", "tag-mgr-modal", "cat-mgr-modal", "head-mgr-modal"].forEach((id) => {
+  ["add-modal", "edit-modal", "detail-modal", "tab-edit-modal", "tag-mgr-modal", "cat-mgr-modal", "head-mgr-modal", "settings-modal"].forEach((id) => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
@@ -2795,11 +2817,31 @@ function bindEvents() {
     }
   });
 
-  // 設定ボタン
+  // 設定ボタン:認証情報を表示
   $("btn-settings").addEventListener("click", () => {
+    openSettingsModal();
+  });
+  // リセットボタン(モーダル内・小さく)
+  $("btn-settings-reset").addEventListener("click", () => {
     if (confirm("接続設定をリセットしますか? (トークン等をブラウザから削除)")) {
       clearAuth();
       location.reload();
+    }
+  });
+  // トークン表示/非表示トグル
+  $("btn-token-toggle").addEventListener("click", () => {
+    const el = $("settings-token");
+    const btn = $("btn-token-toggle");
+    if (el.dataset.shown === "1") {
+      el.textContent = maskToken(auth.token);
+      el.classList.add("settings-token-masked");
+      el.dataset.shown = "0";
+      btn.textContent = "表示";
+    } else {
+      el.textContent = auth.token || "";
+      el.classList.remove("settings-token-masked");
+      el.dataset.shown = "1";
+      btn.textContent = "隠す";
     }
   });
 
